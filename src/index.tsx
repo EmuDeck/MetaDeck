@@ -1,7 +1,6 @@
 import {
 	callOriginal,
-	definePlugin,
-	replacePatch,
+	definePlugin, replacePatch,
 	ServerAPI,
 
 } from "decky-frontend-lib";
@@ -48,6 +47,15 @@ let isLoggedIn = false;
 export default definePlugin((serverAPI: ServerAPI) =>
 {
 	const metadataManager = new MetadataManager(serverAPI);
+	// let gameInfoTab = (findModuleChild(module =>
+	// {
+	// 	if (typeof module!=='object') return undefined;
+	// 	for (let prop in module)
+	// 	{
+	// 		if (module[prop]?.OnPortraitContextMenu) return module[prop];
+	// 	}
+	// }));
+	// metadataManager.patchGameInfo(gameInfoTab);
 	let appPatch = patchAppPage(serverAPI, metadataManager);
 
 	let overviewHook: Hook | undefined;

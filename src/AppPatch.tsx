@@ -1,6 +1,5 @@
 import {
-	afterPatch,
-	findInReactTree,
+	afterPatch, findInReactTree,
 	RoutePatch,
 	ServerAPI, ServerResponse,
 	wrapReactClass,
@@ -11,7 +10,7 @@ import {AppOverview} from "./SteamClient";
 import {MetadataManager} from "./MetadataManager";
 import {PlayTimes} from "./Interfaces";
 
-export const patchAppPage = (serverAPI: ServerAPI, _: MetadataManager): RoutePatch =>
+export const patchAppPage = (serverAPI: ServerAPI, metadataManager: MetadataManager): RoutePatch =>
 {
 	// @ts-ignore
 	return serverAPI.routerHook.addPatch("/library/app/:appid", (props: { path: string, children: ReactElement }) =>
@@ -93,14 +92,24 @@ export const patchAppPage = (serverAPI: ServerAPI, _: MetadataManager): RoutePat
 						);
 						afterPatch(
 								overview.__proto__,
+								"GetCanonicalReleaseDate",
+								function (_, ret)
+								{
+									metadataManager.should_bypass = true;
+									return ret;
+								}
+						);
+						afterPatch(
+								overview.__proto__,
 								"BIsModOrShortcut",
 								function (_, ret)
 								{
 									if (ret === true)
 									{
-										// @ts-ignore
-										// console.log((this as AppOverview).appid, "ModOrShortcut bypassed");
-										return false;
+										const should_bypass = metadataManager.should_bypass
+										console.log("should_bypass", should_bypass)
+										metadataManager.should_bypass = false;
+										return !should_bypass;
 									}
 									return ret;
 								}

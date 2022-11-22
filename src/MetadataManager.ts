@@ -26,11 +26,20 @@ localforage.config({
 
 export class MetadataManager
 {
+	set should_bypass(value: boolean)
+	{
+		this._should_bypass = value;
+	}
+	get should_bypass(): boolean
+	{
+		return this._should_bypass;
+	}
 	private serverAPI: ServerAPI;
 	private developers: Developer[] = [];
 	private publishers: Publisher[] = [];
 	private verifiedDB: VerifiedDBResults[] = [];
 	private metadata: { [key: number]: MetadataData } = {};
+	private _should_bypass: boolean = false;
 	constructor(serverAPI: ServerAPI)
 	{
 		this.serverAPI = serverAPI;
