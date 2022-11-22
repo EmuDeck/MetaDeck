@@ -1,10 +1,10 @@
 {
-  "name": "Example Plugin",
-  "author": "John Doe",
-  "flags": ["debug", "_root"],
+  "name": "MetaDeck",
+  "author": "Witerking25",
+  "flags": ["debug"],
   "publish": {
-    "tags": ["template", "root"],
-    "description": "Decky example plugin.",
-    "image": "https://opengraph.githubassets.com/1/SteamDeckHomebrew/PluginLoader"
+    "tags": ["EmuDeck", "TheGamesDB"],
+    "description": "Plugin for viewing metadata for non steam games from TheGamesDB. Part of the EmuDeck Project",
+    "image": "https://opengraph.githubassets.com/1/EmuDeck/MetaDeck"
   }
 }
