@@ -47,6 +47,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 	let appPatch = patchAppPage(serverAPI, metadataManager);
 
 	const descHook = replacePatch(
+			// @ts-ignore
 			appDetailsStore.__proto__,
 			"GetDescriptions",
 			(args) =>
@@ -65,6 +66,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 	);
 
 	const assocHook = replacePatch(
+			// @ts-ignore
 			appDetailsStore.__proto__,
 			"GetAssociations",
 			(args) =>
