@@ -9,7 +9,7 @@ import importAssets from 'rollup-plugin-import-assets';
 import { name } from "./plugin.json";
 
 export default defineConfig({
-  input: './src/index.tsx',
+  input: './src/ts/index.tsx',
   plugins: [
     commonjs(),
     nodeResolve(),

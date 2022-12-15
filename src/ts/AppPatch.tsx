@@ -1,18 +1,15 @@
 import {
 	afterPatch, findInReactTree,
 	RoutePatch,
-	ServerAPI, ServerResponse,
-	wrapReactClass,
+	ServerAPI, wrapReactClass,
 	wrapReactType
 } from "decky-frontend-lib";
 import {ReactElement} from "react";
 import {AppOverview} from "./SteamClient";
 import {MetadataManager} from "./MetadataManager";
-import {PlayTimes} from "./Interfaces";
 
 export const patchAppPage = (serverAPI: ServerAPI, metadataManager: MetadataManager): RoutePatch =>
 {
-	// @ts-ignore
 	return serverAPI.routerHook.addPatch("/library/app/:appid", (props: { path: string, children: ReactElement }) =>
 	{
 		afterPatch(
@@ -21,32 +18,17 @@ export const patchAppPage = (serverAPI: ServerAPI, metadataManager: MetadataMana
 				(_: Record<string, unknown>[], ret1: ReactElement) =>
 				{
 					const overview: AppOverview = ret1.props.children.props.overview;
-					const game_id = overview.m_gameid;
 					// const details: AppDetails = ret1.props.children.props.details;
 
 					// const appId: number = overview.appid;
 					if (overview.app_type==1073741824)
 					{
-						serverAPI.callPluginMethod<{}, PlayTimes>("get_playtimes", {}).then((response: ServerResponse<PlayTimes>) =>
-						{
-							if (response.success)
-							{
-								// console.log(response.result)
-								if (response.result[game_id])
-								{
-									ret1.props.children.props.details.nPlaytimeForever = +(response.result[game_id] / 60.0).toFixed(1);
-									console.log(+(response.result[game_id] / 60.0).toFixed(1));
-								}
-							}
-						});
-						console.log("level1", ret1);
 						wrapReactType(ret1.props.children);
 						afterPatch(
 								ret1.props.children.type,
 								"type",
 								(_: Record<string, unknown>[], ret2: ReactElement) =>
 								{
-									console.log("level2", ret2);
 									let element = findInReactTree(ret2, x => x?.props?.onTheaterMode);
 									wrapReactClass(element);
 									afterPatch(
@@ -54,14 +36,12 @@ export const patchAppPage = (serverAPI: ServerAPI, metadataManager: MetadataMana
 											"render",
 											(_: Record<string, unknown>[], ret3: ReactElement) =>
 											{
-												console.log("level3", ret3);
 												let element2 = findInReactTree(ret3, x => x?.props?.setSections);
 												afterPatch(
 														element2,
 														"type",
 														(_: Record<string, unknown>[], ret4: ReactElement) =>
 														{
-															console.log("level4", ret4);
 															(ret4.props.setSections as Set<string>).delete("nonsteam");
 															(ret4.props.setSections as Set<string>).delete("spotlightdlc");
 															(ret4.props.setSections as Set<string>).delete("spotlightreview");
@@ -107,7 +87,6 @@ export const patchAppPage = (serverAPI: ServerAPI, metadataManager: MetadataMana
 									if (ret === true)
 									{
 										const should_bypass = metadataManager.should_bypass
-										console.log("should_bypass", should_bypass)
 										metadataManager.should_bypass = false;
 										return !should_bypass;
 									}
@@ -121,60 +100,3 @@ export const patchAppPage = (serverAPI: ServerAPI, metadataManager: MetadataMana
 		return props;
 	});
 }
-
-export let _ = [
-	{
-		"value": "info"
-	},
-	{
-		"value": "spotlightdlc"
-	},
-	{
-		"value": "spotlightreview"
-	},
-	{
-		"value": "spotlight"
-	},
-	{
-		"value": "broadcast"
-	},
-	{
-		"value": "friends"
-	},
-	{
-		"value": "achievements"
-	},
-	{
-		"value": "cards"
-	},
-	{
-		"value": "dlc"
-	},
-	{
-		"value": "screenshots"
-	},
-	{
-		"value": "review"
-	},
-	{
-		"value": "activity"
-	},
-	{
-		"value": "activityrollup"
-	},
-	{
-		"value": "community"
-	},
-	{
-		"value": "additionalcontent"
-	},
-	{
-		"value": "mastersubincluded"
-	},
-	{
-		"value": "timedtrialbanner"
-	},
-	{
-		"value": "workshop"
-	}
-]

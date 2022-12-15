@@ -16,7 +16,6 @@ specifiers:
   lodash-es: ^4.17.21
   mobx: '5'
   react-icons: ^4.4.0
-  react-router: ^6.4.3
   rollup: ^2.77.1
   rollup-plugin-import-assets: ^1.1.1
   shx: ^0.3.4
@@ -41,7 +40,6 @@ devDependencies:
   '@types/react': 16.14.0
   '@types/webpack': 5.28.0
   deckbuild: 1.0.9
-  react-router: 6.4.3
   rollup: 2.77.1
   rollup-plugin-import-assets: 1.1.1_rollup@2.77.1
   shx: 0.3.4
@@ -85,11 +83,6 @@ packages:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.0
       '@jridgewell/sourcemap-codec': 1.4.14
-    dev: true
-
-  /@remix-run/router/1.0.3:
-    resolution: {integrity: sha512-ceuyTSs7PZ/tQqi19YZNBc5X7kj1f8p+4DIyrcIYFY9h+hd1OKm4RqtiWldR9eGEvIiJfsqwM4BsuCtRIuEw6Q==}
-    engines: {node: '>=14'}
     dev: true
 
   /@rollup/plugin-commonjs/21.1.0_rollup@2.77.1:
@@ -1048,18 +1041,6 @@ packages:
       react:
         optional: true
     dev: false
-
-  /react-router/6.4.3:
-    resolution: {integrity: sha512-BT6DoGn6aV1FVP5yfODMOiieakp3z46P1Fk0RNzJMACzE7C339sFuHebfvWtnB4pzBvXXkHP2vscJzWRuUjTtA==}
-    engines: {node: '>=14'}
-    peerDependencies:
-      react: '>=16.8'
-    peerDependenciesMeta:
-      react:
-        optional: true
-    dependencies:
-      '@remix-run/router': 1.0.3
-    dev: true
 
   /rechoir/0.6.2:
     resolution: {integrity: sha512-HFM8rkZ+i3zrV+4LQjwQ0W+ez98pApMGM3HUrN04j3CqzPOzl9nmP15Y8YXNm8QHGv/eacOVEjqhmWpkRV0NAw==}

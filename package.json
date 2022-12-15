@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Plugin for viewing metadata for non steam games from TheGamesDB. Part of the EmuDeck Project",
   "scripts": {
-    "build": "shx rm -rf dist && rollup -c",
+    "build": "shx rm -rf dist && python/entrypoint.sh && rollup -c",
     "watch": "rollup -c -w",
     "test": "echo \"Error: no test specified\" && exit 1",
     "package": "dbuild build",
@@ -16,7 +16,6 @@
   "keywords": [
     "decky",
     "plugin",
-    "plugin-template",
     "steam-deck",
     "deck"
   ],
@@ -36,7 +35,6 @@
     "@types/react": "16.14.0",
     "@types/webpack": "^5.28.0",
     "deckbuild": "^1.0.9",
-    "react-router": "^6.4.3",
     "rollup": "^2.77.1",
     "rollup-plugin-import-assets": "^1.1.1",
     "shx": "^0.3.4",
