@@ -8,6 +8,7 @@ import {ReactElement} from "react";
 import {AppOverview} from "./SteamClient";
 import {MetadataManager} from "./MetadataManager";
 
+// @ts-ignore
 export const patchAppPage = (serverAPI: ServerAPI, metadataManager: MetadataManager): RoutePatch =>
 {
 	return serverAPI.routerHook.addPatch("/library/app/:appid", (props: { path: string, children: ReactElement }) =>

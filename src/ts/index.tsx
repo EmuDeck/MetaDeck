@@ -2,7 +2,6 @@ import {
 	callOriginal,
 	definePlugin, replacePatch,
 	ServerAPI,
-	Plugin
 
 } from "decky-frontend-lib";
 import {FaDatabase} from "react-icons/fa";
@@ -13,6 +12,16 @@ import {SteamClient} from "./SteamClient";
 import {MetadataManager} from "./MetadataManager";
 import {Title} from "./Title";
 import {App} from "./App";
+
+interface Plugin
+{
+	name: string;
+	version?: string;
+	icon: JSX.Element;
+	content?: JSX.Element;
+	onDismount?(): void;
+	alwaysRender?: boolean;
+}
 
 interface PluginLoader
 {
