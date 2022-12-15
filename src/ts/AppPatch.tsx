@@ -49,7 +49,7 @@ export const patchAppPage = (serverAPI: ServerAPI, metadataManager: MetadataMana
 															(ret4.props.setSections as Set<string>).delete("spotlight");
 															(ret4.props.setSections as Set<string>).delete("broadcast");
 															(ret4.props.setSections as Set<string>).delete("friends");
-															if (!window.DeckyPluginLoader.plugins.some(value => value.name === "Emuchievements"))
+															if (!window.DeckyPluginLoader.plugins.some(value => value.name === "Emuchievements" || value.name === "EmuDecky"))
 																(ret4.props.setSections as Set<string>).delete("achievements");
 															(ret4.props.setSections as Set<string>).delete("cards");
 															(ret4.props.setSections as Set<string>).delete("dlc");
