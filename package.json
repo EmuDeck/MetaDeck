@@ -42,7 +42,7 @@
     "typescript": "^4.7.4"
   },
   "dependencies": {
-    "decky-frontend-lib": "^3.9.0",
+    "decky-frontend-lib": "^3.18.3",
     "fastest-levenshtein": "^1.0.16",
     "localforage": "^1.10.0",
     "lodash-es": "^4.17.21",

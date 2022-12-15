@@ -10,7 +10,7 @@ specifiers:
   '@types/react': 16.14.0
   '@types/webpack': ^5.28.0
   deckbuild: ^1.0.9
-  decky-frontend-lib: ^3.9.0
+  decky-frontend-lib: ^3.18.3
   fastest-levenshtein: ^1.0.16
   localforage: ^1.10.0
   lodash-es: ^4.17.21
@@ -23,7 +23,7 @@ specifiers:
   typescript: ^4.7.4
 
 dependencies:
-  decky-frontend-lib: 3.9.0
+  decky-frontend-lib: 3.18.3
   fastest-levenshtein: 1.0.16
   localforage: 1.10.0
   lodash-es: 4.17.21
@@ -538,8 +538,8 @@ packages:
       yargs: 13.2.4
     dev: true
 
-  /decky-frontend-lib/3.9.0:
-    resolution: {integrity: sha512-8JYeNYc9F/VklcaQzHAwBFA6byjqVIqZtVpks6RyeXp2O77eop7xYsu5DGC2IClsXvOgZItegK6H2Vt/RsyThQ==}
+  /decky-frontend-lib/3.18.3:
+    resolution: {integrity: sha512-Byy7TFyYCIPRot/geNqXdAgWWPoyTlAv18IZE+KEBpRywRJSdjWTuOk7bu8WwF1b5aWh3ER+z0BfP9tuAIznfw==}
     dev: false
 
   /deepmerge/4.2.2:

@@ -2,6 +2,7 @@ import {
 	callOriginal,
 	definePlugin, replacePatch,
 	ServerAPI,
+	Plugin
 
 } from "decky-frontend-lib";
 import {FaDatabase} from "react-icons/fa";
@@ -13,16 +14,6 @@ import {MetadataManager} from "./MetadataManager";
 import {Title} from "./Title";
 import {App} from "./App";
 
-interface Plugin
-{
-	name: string;
-	version?: string;
-	icon: JSX.Element;
-	content?: JSX.Element;
-	onDismount?(): void;
-	alwaysRender?: boolean;
-}
-
 interface PluginLoader
 {
 	plugins: Plugin[];
@@ -32,7 +23,9 @@ declare global
 {
 	// @ts-ignore
 	let SteamClient: SteamClient;
+	// @ts-ignore
 	let appStore: AppStore;
+	// @ts-ignore
 	let appDetailsStore: AppDetailsStore;
 	interface Window {
 		DeckyPluginLoader: PluginLoader;
