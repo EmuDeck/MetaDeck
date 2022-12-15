@@ -95,7 +95,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 	metadataManager.init().then(() => {})
 
 	return {
-		title: <Title>SeamlessTimes</Title>,
+		title: <Title>MetaDeck</Title>,
 		content: <App serverAPI={serverAPI}/>,
 		icon: <FaDatabase/>,
 		onDismount()
