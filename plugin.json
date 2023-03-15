@@ -3,8 +3,8 @@
   "author": "Witherking25",
   "flags": ["debug"],
   "publish": {
-    "tags": ["EmuDeck", "TheGamesDB"],
-    "description": "Plugin for viewing metadata for non steam games from TheGamesDB. Part of the EmuDeck Project",
+    "tags": ["EmuDeck", "IGDB"],
+    "description": "Plugin for viewing metadata for non steam games from IGDB. Part of the EmuDeck Project",
     "image": "https://opengraph.githubassets.com/1/EmuDeck/MetaDeck"
   }
 }

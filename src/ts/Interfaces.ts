@@ -1,64 +1,38 @@
 import {ServerAPI} from "decky-frontend-lib";
+import {MetadataManager} from "./MetadataManager";
+
 export interface AppProps
 {
-	serverAPI: ServerAPI
+	serverAPI: ServerAPI,
+	metadataManager: () => MetadataManager
 }
+
 export interface MetadataData
 {
-	last_updated_at: Date;
+	last_updated_at: Date,
+	release_date?: number,
+	title: string,
 	id: number,
 	description: string,
-	developers: Developer[],
-	publishers: Publisher[],
+	developers?: Developer[],
+	publishers?: Publisher[],
 	compat_category: SteamDeckCompatCategory
+}
+
+export interface MetadataDictionary
+{
+	[index: number]: MetadataData
+}
+
+export interface MetadataIdDictionary
+{
+	[index: number]: number
 }
 
 export interface HTTPResult
 {
 	body: string,
 	status: number
-}
-
-export interface BaseResults
-{
-	code: number,
-	status: string,
-	remaining_monthly_allowance: number,
-	extra_allowance: number,
-}
-
-export interface PaginatedResults extends BaseResults
-{
-	pages: {
-		previous: string,
-		current: string,
-		next: string
-	}
-}
-
-export interface SearchResults extends PaginatedResults
-{
-	data: {
-		count: number,
-		games: Game[]
-	}
-}
-
-export interface PublishersResults extends BaseResults
-{
-	data: {
-		count: number,
-		publishers: { [key: string]: Publisher }
-	}
-}
-
-
-export interface DevelopersResults extends BaseResults
-{
-	data: {
-		count: number,
-		developers: { [key: string]: Developer }
-	}
 }
 
 export interface Game
@@ -87,20 +61,20 @@ export interface Game
 
 export interface Developer
 {
-	id: number,
+	url: string,
 	name: string
 }
 
 export interface Publisher
 {
-	id: number,
+	url: string,
 	name: string
 }
 
 export enum YesNo
 {
-	NO= "No",
-	YES="Yes"
+	NO = "No",
+	YES = "Yes"
 }
 
 export enum SteamDeckCompatCategory

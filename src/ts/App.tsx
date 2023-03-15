@@ -1,21 +1,22 @@
 import {Component} from "react";
 import {AppProps} from "./Interfaces";
+import {ButtonItem, PanelSection, PanelSectionRow} from "decky-frontend-lib";
 
 export class App extends Component<AppProps, {}>
 {
-	loadState()
-	{
-	}
-
-	componentDidMount()
-	{
-		this.loadState()
-	}
-
 	render()
 	{
 		return (
-				<div/>
+				<PanelSection>
+					<PanelSectionRow>
+						<ButtonItem onClick={() =>
+						{
+							this.props.metadataManager().clearCache()
+						}}>
+							Clear Cache
+						</ButtonItem>
+					</PanelSectionRow>
+				</PanelSection>
 		);
 	}
 }
