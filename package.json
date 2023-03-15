@@ -47,7 +47,7 @@
 	},
 	"dependencies": {
 		"async-wait-until": "^2.0.12",
-		"decky-frontend-lib": "^3.18.10",
+		"decky-frontend-lib": "^3.19.2",
 		"fastest-levenshtein": "^1.0.16",
 		"localforage": "^1.10.0",
 		"lodash-es": "^4.17.21",

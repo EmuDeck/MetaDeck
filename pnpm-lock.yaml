@@ -13,7 +13,7 @@ specifiers:
   async-wait-until: ^2.0.12
   bluebird: ^3.7.2
   deckbuild: ^2.1.3
-  decky-frontend-lib: ^3.18.10
+  decky-frontend-lib: ^3.19.2
   fastest-levenshtein: ^1.0.16
   igdb-api-types: ^0.1.0
   localforage: ^1.10.0
@@ -30,7 +30,7 @@ specifiers:
 dependencies:
   async-wait-until: 2.0.12
   bluebird: 3.7.2
-  decky-frontend-lib: 3.18.10
+  decky-frontend-lib: 3.19.2
   fastest-levenshtein: 1.0.16
   igdb-api-types: 0.1.0
   localforage: 1.10.0
@@ -561,8 +561,8 @@ packages:
       yargs: 13.2.4
     dev: true
 
-  /decky-frontend-lib/3.18.10:
-    resolution: {integrity: sha512-2mgbA3sSkuwQR/FnmhXVrcW6LyTS95IuL6muJAmQCruhBvXapDtjk1TcgxqMZxFZwGD1IPnemPYxHZll6IgnZw==}
+  /decky-frontend-lib/3.19.2:
+    resolution: {integrity: sha512-J8QYlzi+FEwwoDxoUOhq+BvRO1bdg8O60oxyfcRF7nLalGPrRyaXx4MNNP117X/RY7smPF1xigjglNthdv9Yzw==}
     dev: false
 
   /deepmerge/4.3.0:
