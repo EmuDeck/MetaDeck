@@ -353,15 +353,32 @@ export class MetadataManager
 				{
 					this.logger.log(`Fetched metadata for ${app_id}: `, data);
 					this.metadata[app_id] = data;
-					this.saveData().then(() =>
-					{
-					});
+					void this.saveData();
 				}
 				wait = false;
 			})
 			while (wait)
 			{
 
+			}
+			return this.metadata[app_id];
+		} else
+		{
+			appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
+			return this.metadata[app_id];
+		}
+	}
+
+	public async fetchMetatdataAsync(app_id: number): Promise<MetadataData | undefined>
+	{
+		if (this.metadata[app_id]===undefined)
+		{
+			let data = await this.getMetadataForGame(app_id)
+			if (!!data)
+			{
+				this.logger.log(`Fetched metadata for ${app_id}: `, data);
+				this.metadata[app_id] = data;
+				void this.saveData();
 			}
 			return this.metadata[app_id];
 		} else
@@ -392,7 +409,7 @@ export class MetadataManager
 		await this.loadData();
 		await this.saveData();
 		// const fetchMetadataDebounced = debounce((app_id: number) => this.fetchMetadata(app_id), 500, {leading: true});
-		await Promise.map(shortcuts.map((shortcut: SteamShortcut) => shortcut.appid), async (app_id: number) => this.fetchMetadata(app_id), {
+		await Promise.map(shortcuts.map((shortcut: SteamShortcut) => shortcut.appid), async (app_id: number) => await this.fetchMetatdataAsync(app_id), {
 			concurrency: 3
 		});
 	}

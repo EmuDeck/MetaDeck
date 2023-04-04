@@ -2,6 +2,7 @@ import {Fragment, useEffect, useState, VFC} from "react";
 import {ConfirmModal, DropdownItem, SteamSpinner} from "decky-frontend-lib";
 import {MetadataManager} from "./MetadataManager";
 import {MetadataData} from "./Interfaces";
+import {useTranslations} from "./useTranslations";
 
 
 export const MetaDataModal: VFC<{ appId: number, manager: MetadataManager, closeModal: () => void }> = ({
@@ -14,6 +15,7 @@ export const MetaDataModal: VFC<{ appId: number, manager: MetadataManager, close
 	const [metadataId, setMetadataId] = useState<number>(0);
 	const [selected, setSelected] = useState<MetadataData | undefined>();
 	const [loaded, setLoaded] = useState<boolean>(false);
+	const t = useTranslations()
 
 	useEffect(() =>
 	{
@@ -27,6 +29,7 @@ export const MetaDataModal: VFC<{ appId: number, manager: MetadataManager, close
 					manager.getMetadataId(appId).then(id =>
 					{
 						setSelected(!!data && !!id ? data[id] : undefined);
+						setMetadataId(id ?? 0);
 						setLoaded(true);
 					});
 				}
@@ -39,7 +42,7 @@ export const MetaDataModal: VFC<{ appId: number, manager: MetadataManager, close
 	return (
 			<Fragment>
 				<ConfirmModal
-						strTitle="Change Metadata"
+						strTitle={t("changeMetadata")}
 						onOK={async () =>
 						{
 							await manager.setMetadataId(appId, metadataId)

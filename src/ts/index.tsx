@@ -1,24 +1,22 @@
 import {
 	afterPatch,
 	callOriginal,
-	definePlugin, fakeRenderComponent,
-	findInReactTree, findInTree,
-	findModuleChild, MenuItem,
-	Patch,
-	replacePatch,
-	ServerAPI, showModal,
+	definePlugin, Patch,
+	replacePatch, Router,
+	ServerAPI, SideMenu,
 
 
 } from "decky-frontend-lib";
 import {FaDatabase} from "react-icons/fa";
 
 import {AppDetailsStore, AppStore} from "./AppStore";
-import {AppOverview, SteamClient} from "./SteamClient";
+import {SteamClient} from "./SteamClient";
 import {MetadataManager} from "./MetadataManager";
 import {Title} from "./Title";
 import {App} from "./App";
 import Logger from "./logger";
-import {MetaDataModal} from "./MetaDataModal";
+import contextMenuPatch, {getMenu} from "./contextMenuPatch";
+import {getTranslateFunc} from "./useTranslations";
 
 interface Plugin
 {
@@ -52,45 +50,18 @@ declare global
 	}
 }
 
-async function getMenu() {
-	// @ts-ignore: decky global is not typed
-	while (!window.DeckyPluginLoader?.routerHook?.routes) {
-		await new Promise((resolve) => setTimeout(resolve, 500));
-	}
-
-	let LibraryContextMenu = findInReactTree(
-			fakeRenderComponent(
-					findInTree(
-							fakeRenderComponent(
-									// @ts-ignore: decky global is not typed
-									window.DeckyPluginLoader.routerHook.routes.find((x) => x?.props?.path == '/zoo').props.children.type
-							), (x) => x?.route === '/zoo/modals',
-							{
-								walkable: ['props', 'children', 'child', 'pages'],
-							}
-					).content.type
-			),
-			(x) => x?.title?.includes('AppActionsMenu')
-	).children.type;
-
-	if (!LibraryContextMenu?.prototype?.AddToHidden) {
-		LibraryContextMenu = fakeRenderComponent(LibraryContextMenu).type;
-	}
-	return LibraryContextMenu;
-}
-
-const AppDetailsSections = findModuleChild((m) =>
-{
-	if (typeof m!=='object') return;
-	for (const prop in m)
-	{
-		if (
-				m[prop]?.toString &&
-				m[prop].toString().includes("bShowGameInfo")
-		) return m[prop];
-	}
-	return;
-});
+// const AppDetailsSections = findModuleChild((m) =>
+// {
+// 	if (typeof m!=='object') return;
+// 	for (const prop in m)
+// 	{
+// 		if (
+// 				m[prop]?.toString &&
+// 				m[prop].toString().includes("bShowGameInfo")
+// 		) return m[prop];
+// 	}
+// 	return;
+// });
 
 // const AppInfoContainer = findModuleChild((m) =>
 // {
@@ -105,25 +76,6 @@ const AppDetailsSections = findModuleChild((m) =>
 // 	return;
 // });
 
-const spliceMetadataItem = (children: any[], appId: number, metadataManager: MetadataManager) =>
-{
-	children.splice(-1, 0, (
-			<MenuItem
-					key="metadeck-change-metadata"
-					onSelected={async () =>
-					{
-						await showModal(
-								<MetaDataModal appId={appId} manager={metadataManager} closeModal={() =>
-								{
-								}}/>
-						)
-					}}
-			>
-				{"Change Metadata..."}
-			</MenuItem>
-	));
-};
-
 export default definePlugin((serverAPI: ServerAPI) =>
 {
 	const logger = new Logger("Index");
@@ -137,8 +89,9 @@ export default definePlugin((serverAPI: ServerAPI) =>
 			{
 				if (appStore.GetAppOverviewByAppID(args[0]).app_type==1073741824)
 				{
+					const t = getTranslateFunc()
 					const data = metadataManager.fetchMetadata(args[0])
-					const desc = data?.description ?? "No description found";
+					const desc = data?.description ?? t("noDescription");
 					logger.log(desc);
 					return {
 						strFullDescription: desc,
@@ -200,52 +153,8 @@ export default definePlugin((serverAPI: ServerAPI) =>
 
 	let patchedMenu: Patch | undefined;
 	getMenu().then((LibraryContextMenu) => {
-		patchedMenu = afterPatch(LibraryContextMenu.prototype, 'render', (_: Record<string, unknown>[], component: any) =>
-		{
-			const appid: number = component._owner.pendingProps.overview.appid;
-			afterPatch(component.type.prototype, 'shouldComponentUpdate', ([nextProps]: any, shouldUpdate: any) => {
-				if (shouldUpdate === true && !nextProps.children.find((x: any) => x?.key === 'metadeck-change-artwork')) {
-					let updatedAppid: number = appid;
-					// find the first menu component that has the correct appid assigned to _owner
-					const parentOverview = nextProps.children.find((x: any) =>
-							x?._owner?.pendingProps?.overview?.appid &&
-							x._owner.pendingProps.overview.appid !== appid
-					);
-					// if found then use that appid
-					if (parentOverview) {
-						updatedAppid = parentOverview._owner.pendingProps.overview.appid;
-					}
-					spliceMetadataItem(nextProps.children, updatedAppid, metadataManager);
-				}
-				return shouldUpdate;
-			}, { singleShot: true });
-
-			spliceMetadataItem(component.props.children, appid, metadataManager);
-			return component;
-		});
-	})
-	const sectionHook = afterPatch(AppDetailsSections.prototype, 'render', (_: Record<string, unknown>[], component: any) =>
-	{
-		const overview: AppOverview = component._owner.pendingProps.overview;
-		logger.log("AppDetailsSections", component._owner)
-		logger.log(component._owner.pendingProps)
-		if (overview.app_type===1073741824)
-		{
-			afterPatch(
-					component._owner.type.prototype,
-					"GetSections",
-					(_: Record<string, unknown>[], ret3: Set<string>) =>
-					{
-						// ret3.delete("nonsteam");
-						// ret3.add("info");
-						logger.log(ret3);
-						return ret3;
-					}
-			);
-		}
-		return component;
+		patchedMenu = contextMenuPatch(LibraryContextMenu, metadataManager);
 	});
-
 
 	let count = 0;
 	const shortcutHook = afterPatch(
@@ -255,18 +164,19 @@ export default definePlugin((serverAPI: ServerAPI) =>
 			{
 				if (ret===true)
 				{
+					const side_menu_open = (Router?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore as any)?.m_eOpenSideMenu == SideMenu.Main
 					const should_bypass = metadataManager.should_bypass
 					if (should_bypass)
 					{
 						count++;
-						if (count >= 10)
+						if (count >= 3)
 						{
 							metadataManager.should_bypass = false;
 							count = 0
 						}
 						logger.log(`bypassed ${_[0]}`)
 					}
-					return should_bypass
+					return should_bypass || side_menu_open
 				}
 				return ret;
 			}
@@ -309,9 +219,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 	// 	return component1;
 	// });
 
-	metadataManager.init().then(() =>
-	{
-	})
+	void metadataManager.init();
 
 	return {
 		title: <Title>MetaDeck</Title>,
@@ -329,7 +237,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 				releaseDateHook?.unpatch();
 				perClientDataHook?.unpatch();
 				patchedMenu?.unpatch();
-				sectionHook?.unpatch();
+				// sectionHook?.unpatch();
 				// appInfoHook?.unpatch();
 			});
 		},
