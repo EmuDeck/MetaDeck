@@ -13,3 +13,5 @@ vscode and intellj IDEA run configs are included
 ## Translation
 If you are multilingual and would like to help translate MetaDeck, please visit the crowdin page and help my american ass
 https://crowdin.com/project/metadeck
+
+ask me over on the decky loader discord for an invite 
