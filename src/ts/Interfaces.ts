@@ -16,7 +16,9 @@ export interface MetadataData
 	description: string,
 	developers?: Developer[],
 	publishers?: Publisher[],
-	compat_category: SteamDeckCompatCategory
+	compat_category: SteamDeckCompatCategory,
+
+	store_categories: StoreCategory[],
 }
 
 export interface MetadataDictionary
@@ -83,6 +85,29 @@ export enum SteamDeckCompatCategory
 	UNSUPPORTED,
 	PLAYABLE,
 	VERIFIED
+}
+
+export enum StoreCategory
+{
+	MultiPlayer = 1,
+	SinglePlayer = 2,
+	CoOp = 9,
+	PartialController = 18,
+	MMO = 20,
+	Achievements = 22,
+	SteamCloud = 23,
+	SplitScreen = 24,
+	CrossPlatformMultiPlayer = 27,
+	FullController = 28,
+	TradingCards = 29,
+	Workshop = 30,
+	VRSupport = 31,
+	OnlineMultiPlayer = 36,
+	LocalMultiPlayer = 37,
+	OnlineCoOp = 38,
+	LocalCoOp = 392,
+	RemotePlayTogether = 44,
+	HighQualitySoundtrackAudio = 50
 }
 
 export interface VerifiedDBResults

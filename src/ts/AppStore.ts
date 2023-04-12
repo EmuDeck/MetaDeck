@@ -1,12 +1,13 @@
-import {AppAchievements, AppDetails, AppOverview, Hook} from "./SteamClient";
 import { ObservableMap } from "mobx";
+import {AppAchievements} from "decky-frontend-lib";
+import {Hook, SteamAppDetails, SteamAppOverview} from "./SteamTypes";
 
 export interface AppStore
 {
-	m_mapApps: ObservableMap<number, AppDetails>;
+	m_mapApps: ObservableMap<number, SteamAppDetails>;
 	UpdateAppOverview: any,
-	GetAppOverviewByAppID: (id: number) => AppOverview,
-	GetAppOverviewByGameID: (id: string) => AppOverview,
+	GetAppOverviewByAppID: (id: number) => SteamAppOverview,
+	GetAppOverviewByGameID: (id: string) => SteamAppOverview,
 	CompareSortAs: any,
 	allApps: any,
 	storeTagCounts: any,
@@ -33,8 +34,8 @@ export interface AppStore
 
 export interface AppDetailsStore {
 	__proto__: any;
-	GetAppDetails: (id: number) => AppDetails,
-	RegisterForAppData: (app_id: any, callback: (data: AppDetails) => void) => Hook
+	GetAppDetails: (id: number) => SteamAppDetails,
+	RegisterForAppData: (app_id: any, callback: (data: SteamAppDetails) => void) => Hook
 
 	GetAchievements(app_id: number): AppAchievements;
 }

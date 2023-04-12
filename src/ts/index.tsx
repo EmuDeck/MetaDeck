@@ -3,20 +3,20 @@ import {
 	callOriginal,
 	definePlugin, Patch,
 	replacePatch, Router,
-	ServerAPI, SideMenu,
+	ServerAPI, SideMenu, sleep,
 
 
 } from "decky-frontend-lib";
 import {FaDatabase} from "react-icons/fa";
 
 import {AppDetailsStore, AppStore} from "./AppStore";
-import {SteamClient} from "./SteamClient";
 import {MetadataManager} from "./MetadataManager";
 import {Title} from "./Title";
 import {App} from "./App";
 import Logger from "./logger";
 import contextMenuPatch, {getMenu} from "./contextMenuPatch";
 import {getTranslateFunc} from "./useTranslations";
+import {CollectionStore, SteamAppOverview} from "./SteamTypes";
 
 interface Plugin
 {
@@ -37,12 +37,11 @@ interface PluginLoader
 
 declare global
 {
-	// @ts-ignore
-	let SteamClient: SteamClient;
-	// @ts-ignore
 	let appStore: AppStore;
-	// @ts-ignore
 	let appDetailsStore: AppDetailsStore;
+
+	let collectionStore: CollectionStore;
+
 
 	interface Window
 	{
@@ -81,6 +80,32 @@ export default definePlugin((serverAPI: ServerAPI) =>
 	const logger = new Logger("Index");
 	const metadataManager = new MetadataManager(serverAPI);
 
+	const checkOnlineStatus = async () =>
+	{
+		try
+		{
+			const online = await serverAPI.fetchNoCors<{ body: string; status: number }>("https://example.com");
+			return online.success && online.result.status >= 200 && online.result.status < 300; // either true or false
+		} catch (err)
+		{
+			return false; // definitely offline
+		}
+	}
+
+	const waitForOnline = async () =>
+	{
+		while (!(await checkOnlineStatus()))
+		{
+			logger.debug("No internet connection, retrying...");
+			await sleep(1000);
+		}
+	}
+
+	waitForOnline().then(() =>
+	{
+
+	})
+
 	const descHook = replacePatch(
 			// @ts-ignore
 			appDetailsStore.__proto__,
@@ -97,6 +122,28 @@ export default definePlugin((serverAPI: ServerAPI) =>
 						strFullDescription: desc,
 						strSnippet: desc
 					}
+				}
+				return callOriginal;
+			}
+	);
+
+	const storeCategoryHook = replacePatch(
+			// @ts-ignore
+			appStore.allApps[0].__proto__,
+			"BHasStoreCategory",
+			function (args)
+			{
+				// @ts-ignore
+				if ((this as SteamAppOverview).app_type==1073741824)
+				{
+					// @ts-ignore
+					const data = metadataManager.fetchMetadata((this as SteamAppOverview).appid)
+					const categories = data?.store_categories ?? [];
+					if (categories.includes(args[0]))
+					{
+						return true
+					}
+					logger.debug(`Categories ${categories}, ${data?.store_categories}`)
 				}
 				return callOriginal;
 			}
@@ -151,8 +198,9 @@ export default definePlugin((serverAPI: ServerAPI) =>
 			}
 	);
 
-	let patchedMenu: Patch | undefined;
-	getMenu().then((LibraryContextMenu) => {
+	let patchedMenu: Patch;
+	getMenu().then((LibraryContextMenu) =>
+	{
 		patchedMenu = contextMenuPatch(LibraryContextMenu, metadataManager);
 	});
 
@@ -164,7 +212,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 			{
 				if (ret===true)
 				{
-					const side_menu_open = (Router?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore as any)?.m_eOpenSideMenu == SideMenu.Main
+					const side_menu_open = (Router?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore as any)?.m_eOpenSideMenu==SideMenu.Main
 					const should_bypass = metadataManager.should_bypass
 					if (should_bypass)
 					{
@@ -231,6 +279,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 			{
 				descHook?.unpatch();
 				assocHook?.unpatch();
+				storeCategoryHook?.unpatch();
 				launchedHook?.unpatch();
 				// killedHook?.unpatch();
 				shortcutHook?.unpatch();

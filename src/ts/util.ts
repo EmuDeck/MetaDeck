@@ -1,5 +1,5 @@
-import {AppDetails, AppOverview} from "./SteamClient";
 import waitUntil from "async-wait-until";
+import {AppDetails, AppOverview} from "decky-frontend-lib";
 
 export async function getAppDetails(appId: number): Promise<AppDetails | null> {
 	return await new Promise((resolve) => {

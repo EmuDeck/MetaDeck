@@ -1,5 +1,4 @@
 export const log = (name: string, ...args: any[]) => {
-	if (process.env.NODE_ENV === 'development')
 		console.log(
 			   `%c MetaDeck %c ${name} %c`,
 			   'background: #16a085; color: black;',

@@ -8,12 +8,12 @@ import {
 	MetadataDictionary,
 	Publisher,
 	SteamDeckCompatCategory,
+	StoreCategory,
 	VerifiedDBResults,
 	YesNo
 } from "./Interfaces";
 
-import {Game, InvolvedCompany, Company} from "igdb-api-types"
-import {SteamShortcut} from "./SteamClient";
+import {Company, Game, GameMode, InvolvedCompany, MultiplayerMode, Platform} from "igdb-api-types"
 import {toNumber} from "lodash-es";
 import {authenticate_igdb, get_metadata, get_metadata_id, set_metadata, set_metadata_id} from "./Python";
 import Logger from "./logger";
@@ -25,6 +25,18 @@ localforage.config({
 	name: database,
 });
 
+export async function getAllNonSteamAppIds(): Promise<number[]>
+{
+	return Array.from(collectionStore.deckDesktopApps.apps.keys());
+}
+export enum PlatformCategory {
+	console = 1,
+	arcade = 2,
+	platform = 3,
+	operating_system = 4,
+	portable_console = 5,
+	computer = 6,
+}
 export class MetadataManager
 {
 	set should_bypass(value: boolean)
@@ -68,7 +80,7 @@ export class MetadataManager
 	public async loadData()
 	{
 		this.metadata = await get_metadata(this.serverAPI);
-		this.logger.log("MetadataData", this.metadata);
+		this.logger.debug("MetadataData", this.metadata);
 		for (let key in this.metadata)
 		{
 			const data = this.metadata[toNumber(key)];
@@ -105,10 +117,10 @@ export class MetadataManager
 	public normalize(str: string): string
 	{
 		return str
-				.toLowerCase()
-				.replace(/[^a-z\d \x7f-\xff]/gi, ' ')
-				.replace(/\s+/gi, ' ')
-				.trim();
+				?.toLowerCase()
+				?.replace(/[^a-z\d \x7f-\xff]/gi, ' ')
+				?.replace(/\s+/gi, ' ')
+				?.trim();
 	}
 
 	public async setMetadataId(app_id: number, data_id: number): Promise<void>
@@ -130,7 +142,7 @@ export class MetadataManager
 
 			const display_name = appStore.GetAppOverviewByAppID(app_id)?.display_name;
 			const auth = await authenticate_igdb(this.serverAPI);
-			this.logger.log(auth);
+			this.logger.debug(auth);
 
 			const response = (await this.serverAPI.fetchNoCors<HTTPResult>("https://api.igdb.com/v4/games", {
 				method: "POST",
@@ -139,9 +151,9 @@ export class MetadataManager
 					"Client-ID": `${auth.client_id}`,
 					"Authorization": `Bearer ${auth.token}`,
 				},
-				body: `search \"${display_name}\"; fields *, involved_companies.*, involved_companies.company.*;`
+				body: `search \"${display_name}\"; fields *, involved_companies.*, involved_companies.company.*, game_modes.*, multiplayer_modes.*, platforms.*;`
 			}));
-			this.logger.log(response)
+			this.logger.debug(response)
 
 			if (response.success)
 			{
@@ -150,14 +162,82 @@ export class MetadataManager
 				{
 					const closest_name = closest(this.normalize(display_name), results.map(value => value.name) as string[])
 					const games = results.filter(value => value.name===closest_name && value.summary!=="") as Game[]
-					this.logger.log(`Game ${JSON.stringify(games, undefined, "\t")}`)
+					this.logger.debug(`Game ${JSON.stringify(games, undefined, "\t")}`)
 
 					let ret: { [index: number]: MetadataData } = {};
 					for (let game of games)
 					{
 						let gameDevs: Developer[] = [];
 						let gamePubs: Publisher[] = [];
+						let gameCategories: StoreCategory[] = [];
+						if (!!game.game_modes)
+						{
+							game.game_modes = game.game_modes as GameMode[];
+							for (const game_mode of game.game_modes)
+							{
+								if (!!game_mode.slug)
+								{
+									switch (game_mode.slug)
+									{
+										case "single-player":
+											gameCategories.push(StoreCategory.SinglePlayer)
+											break;
 
+										case "multiplayer":
+											gameCategories.push(StoreCategory.MultiPlayer)
+											break;
+									}
+									this.logger.debug(`Game mode: ${game_mode.slug}`)
+								}
+							}
+						}
+						if (!!game.multiplayer_modes)
+						{
+							game.multiplayer_modes = game.multiplayer_modes as MultiplayerMode[];
+							for (const multiplayer_mode of game.multiplayer_modes)
+							{
+								if (!!multiplayer_mode.onlinecoop)
+								{
+									gameCategories.push(StoreCategory.OnlineCoOp)
+								}
+								if (!!multiplayer_mode.offlinecoop)
+								{
+									gameCategories.push(StoreCategory.LocalCoOp)
+								}
+								if (!!multiplayer_mode.splitscreen || !!multiplayer_mode.splitscreenonline)
+								{
+									gameCategories.push(StoreCategory.SplitScreen)
+								}
+								if (!!multiplayer_mode.onlinecoop || !!multiplayer_mode.splitscreenonline)
+								{
+									gameCategories.push(StoreCategory.OnlineMultiPlayer)
+								}
+								if (!!multiplayer_mode.offlinecoop || !!multiplayer_mode.lancoop || !!multiplayer_mode.splitscreen)
+								{
+									gameCategories.push(StoreCategory.LocalMultiPlayer)
+								}
+								this.logger.debug(`Multiplayer mode: ${multiplayer_mode.id}`)
+							}
+						}
+						if (!!game.platforms)
+						{
+							game.platforms = game.platforms as Platform[];
+							for (const platform of game.platforms)
+							{
+								if (!!platform.category)
+								{
+									if (platform.category === PlatformCategory.console || platform.category === PlatformCategory.portable_console || platform.category === PlatformCategory.arcade && !gameCategories.includes(StoreCategory.FullController) && !gameCategories.includes(StoreCategory.PartialController))
+									{
+										gameCategories.push(StoreCategory.FullController)
+									}
+								}
+							}
+						}
+						this.logger.debug(`StoreCategories: ${gameCategories}`)
+						for (const category of gameCategories)
+						{
+							appStore.GetAppOverviewByAppID(app_id).m_setStoreCategories.add(category);
+						}
 						if (!!game.involved_companies)
 						{
 							game.involved_companies = game.involved_companies as InvolvedCompany[]
@@ -200,6 +280,7 @@ export class MetadataManager
 								compat_category = SteamDeckCompatCategory.UNSUPPORTED
 							}
 						} else compat_category = SteamDeckCompatCategory.UNKNOWN;
+
 						appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = compat_category;
 						let data: MetadataData = {
 							title: game.name ?? "No Title",
@@ -209,14 +290,15 @@ export class MetadataManager
 							publishers: gamePubs,
 							last_updated_at: new Date(),
 							release_date: game.first_release_date,
-							compat_category: compat_category
+							compat_category: compat_category,
+							store_categories: gameCategories
 						}
 						await this.updateCache(`${app_id}`, data);
-						this.logger.log(data);
+						this.logger.debug(data);
 						ret[game.id] = data;
 
 					}
-					this.logger.log(ret);
+					this.logger.debug(ret);
 					resolve(ret);
 
 				} else resolve(undefined);
@@ -226,7 +308,7 @@ export class MetadataManager
 
 	public async getMetadataForGame(app_id: number): Promise<MetadataData | undefined>
 	{
-		this.logger.log(`Fetching metadata for game ${app_id}`)
+		this.logger.debug(`Fetching metadata for game ${app_id}`)
 		return new Promise<MetadataData | undefined>(async (resolve, reject) =>
 		{
 			const cache = await this.getCache(`${app_id}`);
@@ -238,7 +320,7 @@ export class MetadataManager
 			{
 				const display_name = appStore.GetAppOverviewByAppID(app_id)?.display_name;
 				const auth = await authenticate_igdb(this.serverAPI);
-				this.logger.log(auth);
+				this.logger.debug(auth);
 				const response = (await this.serverAPI.fetchNoCors<HTTPResult>("https://api.igdb.com/v4/games", {
 					method: "POST",
 					headers: {
@@ -246,9 +328,9 @@ export class MetadataManager
 						"Client-ID": `${auth.client_id}`,
 						"Authorization": `Bearer ${auth.token}`,
 					},
-					body: `search \"${display_name}\"; fields *, involved_companies.*, involved_companies.company.*;`
+					body: `search \"${display_name}\"; fields *, involved_companies.*, involved_companies.company.*, game_modes.*, multiplayer_modes.*, platforms.*;`
 				}));
-				this.logger.log(response)
+				this.logger.debug(response)
 
 				if (response.success)
 				{
@@ -260,9 +342,9 @@ export class MetadataManager
 						if (data_id===undefined)
 						{
 							const closest_name = closest(this.normalize(display_name), results.map(value => value.name) as string[])
-							this.logger.log(closest_name, results.map(value => value.name))
+							this.logger.debug(closest_name, results.map(value => value.name))
 							const games1 = results.filter(value => value.name===closest_name) as Game[]
-							this.logger.log(`Game ${JSON.stringify(games1, undefined, "\t")}`)
+							this.logger.debug(`Game ${JSON.stringify(games1, undefined, "\t")}`)
 							games = games1.filter(value => value.summary!=="")
 							await this.setMetadataId(app_id, games.length > 0 ? games[0].id:0)
 						} else if (data_id===0)
@@ -277,7 +359,75 @@ export class MetadataManager
 						{
 							let gameDevs: Developer[] = [];
 							let gamePubs: Publisher[] = [];
+							let gameCategories: StoreCategory[] = [];
+							if (!!game.game_modes)
+							{
+								game.game_modes = game.game_modes as GameMode[];
+								for (const game_mode of game.game_modes)
+								{
+									if (!!game_mode.slug)
+									{
+										switch (game_mode.slug)
+										{
+											case "single-player":
+												gameCategories.push(StoreCategory.SinglePlayer)
+												break;
 
+											case "multiplayer":
+												gameCategories.push(StoreCategory.MultiPlayer)
+												break;
+										}
+										this.logger.debug(`Game mode: ${game_mode.slug}`)
+									}
+								}
+							}
+							if (!!game.multiplayer_modes)
+							{
+								game.multiplayer_modes = game.multiplayer_modes as MultiplayerMode[];
+								for (const multiplayer_mode of game.multiplayer_modes)
+								{
+									if (!!multiplayer_mode.onlinecoop)
+									{
+										gameCategories.push(StoreCategory.OnlineCoOp)
+									}
+									if (!!multiplayer_mode.offlinecoop)
+									{
+										gameCategories.push(StoreCategory.LocalCoOp)
+									}
+									if (!!multiplayer_mode.splitscreen || !!multiplayer_mode.splitscreenonline)
+									{
+										gameCategories.push(StoreCategory.SplitScreen)
+									}
+									if (!!multiplayer_mode.onlinecoop || !!multiplayer_mode.splitscreenonline)
+									{
+										gameCategories.push(StoreCategory.OnlineMultiPlayer)
+									}
+									if (!!multiplayer_mode.offlinecoop || !!multiplayer_mode.lancoop || !!multiplayer_mode.splitscreen)
+									{
+										gameCategories.push(StoreCategory.LocalMultiPlayer)
+									}
+									this.logger.debug(`Multiplayer mode: ${multiplayer_mode.id}`)
+								}
+							}
+							if (!!game.platforms)
+							{
+								game.platforms = game.platforms as Platform[];
+								for (const platform of game.platforms)
+								{
+									if (!!platform.category)
+									{
+										if (platform.category === PlatformCategory.console || platform.category === PlatformCategory.portable_console || platform.category === PlatformCategory.arcade && !gameCategories.includes(StoreCategory.FullController) && !gameCategories.includes(StoreCategory.PartialController))
+										{
+											gameCategories.push(StoreCategory.FullController)
+										}
+									}
+								}
+							}
+							this.logger.debug(`StoreCategories: ${gameCategories}`)
+							for (const category of gameCategories)
+							{
+								appStore.GetAppOverviewByAppID(app_id).m_setStoreCategories.add(category);
+							}
 							if (!!game.involved_companies)
 							{
 								game.involved_companies = game.involved_companies as InvolvedCompany[]
@@ -329,11 +479,12 @@ export class MetadataManager
 								publishers: gamePubs,
 								last_updated_at: new Date(),
 								release_date: game?.first_release_date,
-								compat_category: compat_category
+								compat_category: compat_category,
+								store_categories: gameCategories
 							}
 							await this.updateCache(`${app_id}`, data);
 							resolve(data);
-							this.logger.log(data);
+							this.logger.debug(data);
 						}
 
 					} else resolve(undefined);
@@ -351,7 +502,7 @@ export class MetadataManager
 			{
 				if (!!data)
 				{
-					this.logger.log(`Fetched metadata for ${app_id}: `, data);
+					this.logger.debug(`Fetched metadata for ${app_id}: `, data);
 					this.metadata[app_id] = data;
 					void this.saveData();
 				}
@@ -365,6 +516,7 @@ export class MetadataManager
 		} else
 		{
 			appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
+			this.metadata[app_id].store_categories?.forEach(category => appStore.GetAppOverviewByAppID(app_id).m_setStoreCategories.add(category))
 			return this.metadata[app_id];
 		}
 	}
@@ -376,7 +528,7 @@ export class MetadataManager
 			let data = await this.getMetadataForGame(app_id)
 			if (!!data)
 			{
-				this.logger.log(`Fetched metadata for ${app_id}: `, data);
+				this.logger.debug(`Fetched metadata for ${app_id}: `, data);
 				this.metadata[app_id] = data;
 				void this.saveData();
 			}
@@ -384,6 +536,7 @@ export class MetadataManager
 		} else
 		{
 			appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
+			this.metadata[app_id].store_categories?.forEach(category => appStore.GetAppOverviewByAppID(app_id).m_setStoreCategories.add(category))
 			return this.metadata[app_id];
 		}
 	}
@@ -393,6 +546,7 @@ export class MetadataManager
 		const response = (await this.serverAPI.fetchNoCors<HTTPResult>("https://opensheet.elk.sh/1fRqvAh_wW8Ho_8i966CCSBgPJ2R_SuDFIvvKsQCv05w/Database", {
 			method: "GET"
 		}));
+		this.logger.debug(`Verified DB: ${JSON.stringify(response, undefined, "\t")}`)
 		if (response.success)
 		{
 			if (response.result.status===200)
@@ -404,12 +558,11 @@ export class MetadataManager
 
 	async init(): Promise<void>
 	{
-		let shortcuts = await SteamClient.Apps.GetAllShortcuts()
 		await this.getVerifiedDB();
 		await this.loadData();
 		await this.saveData();
 		// const fetchMetadataDebounced = debounce((app_id: number) => this.fetchMetadata(app_id), 500, {leading: true});
-		await Promise.map(shortcuts.map((shortcut: SteamShortcut) => shortcut.appid), async (app_id: number) => await this.fetchMetatdataAsync(app_id), {
+		await Promise.map(getAllNonSteamAppIds(), async (app_id: number) => await this.fetchMetatdataAsync(app_id), {
 			concurrency: 3
 		});
 	}
