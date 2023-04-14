@@ -4,7 +4,7 @@ import {Hook, SteamAppDetails, SteamAppOverview} from "./SteamTypes";
 
 export interface AppStore
 {
-	m_mapApps: ObservableMap<number, SteamAppDetails>;
+	m_mapApps: ObservableMap<number, SteamAppOverview>;
 	UpdateAppOverview: any,
 	GetAppOverviewByAppID: (id: number) => SteamAppOverview,
 	GetAppOverviewByGameID: (id: string) => SteamAppOverview,

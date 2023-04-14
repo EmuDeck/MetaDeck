@@ -79,6 +79,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 {
 	const logger = new Logger("Index");
 	const metadataManager = new MetadataManager(serverAPI);
+	logger.log(metadataManager)
 
 	const checkOnlineStatus = async () =>
 	{
