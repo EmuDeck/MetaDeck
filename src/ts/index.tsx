@@ -1,7 +1,7 @@
 import {
 	afterPatch,
 	callOriginal,
-	definePlugin, Patch,
+	definePlugin, Focusable, Navigation, Patch,
 	replacePatch, Router,
 	ServerAPI, SideMenu, sleep,
 
@@ -17,6 +17,10 @@ import Logger from "./logger";
 import contextMenuPatch, {getMenu} from "./contextMenuPatch";
 import {getTranslateFunc} from "./useTranslations";
 import {CollectionStore, SteamAppOverview} from "./SteamTypes";
+import {EventBus, MountManager} from "./System";
+import {FunctionComponent, ReactNode, useRef} from "react";
+import {ReactMarkdown, ReactMarkdownOptions} from "react-markdown/lib/react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Plugin
 {
@@ -39,6 +43,8 @@ declare global
 {
 	let appStore: AppStore;
 	let appDetailsStore: AppDetailsStore;
+
+	let appDetailsCache: any
 
 	let collectionStore: CollectionStore;
 
@@ -75,11 +81,49 @@ declare global
 // 	return;
 // });
 
+interface MarkdownProps extends ReactMarkdownOptions {
+	onDismiss?: () => void;
+}
+
+const Markdown: FunctionComponent<MarkdownProps> = (props) => {
+	return (
+			<Focusable>
+				<ReactMarkdown
+						remarkPlugins={[remarkGfm]}
+						components={{
+							div: (nodeProps) => <Focusable {...nodeProps.node.properties}>{nodeProps.children}</Focusable>,
+							a: (nodeProps) => {
+								const aRef = useRef<HTMLAnchorElement>(null);
+								return (
+										// TODO fix focus ring
+										<Focusable
+												onActivate={() => {}}
+												onOKButton={() => {
+													props.onDismiss?.();
+													Navigation.NavigateToExternalWeb(aRef.current!.href);
+												}}
+												style={{ display: 'inline' }}
+										>
+											<a ref={aRef} {...nodeProps.node.properties}>
+												{nodeProps.children}
+											</a>
+										</Focusable>
+								);
+							},
+						}}
+						{...props}
+				>{props.children}</ReactMarkdown>
+			</Focusable>
+	);
+};
+
 export default definePlugin((serverAPI: ServerAPI) =>
 {
 	const logger = new Logger("Index");
 	const metadataManager = new MetadataManager(serverAPI);
-	logger.log(metadataManager)
+
+	const eventBus = new EventBus()
+	const mountManager = new MountManager(eventBus, logger)
 
 	const checkOnlineStatus = async () =>
 	{
@@ -102,81 +146,162 @@ export default definePlugin((serverAPI: ServerAPI) =>
 		}
 	}
 
-	waitForOnline().then(() =>
-	{
+	mountManager.addPatchMount({
+		patch(): Patch {
+			return replacePatch(
+					appDetailsCache,
+					"SetCachedDataForApp",
+					function ([e, t, r, i]) {
+						// @ts-ignore
+						this.m_mapAppDetailsCache.has(e) || this.m_mapAppDetailsCache.set(e, new Map),
+								// @ts-ignore
+								this.m_mapAppDetailsCache.get(e).set(t, {
+									version: r,
+									data: i
+								});
+						// @ts-ignore
+						let n = this.m_mapAppDetailsCache.get(e);
+						// if (appStore.GetAppOverviewByAppID(e).app_type !== 1073741824)
+							// return SteamClient.Apps.SetCachedAppDetails(e, JSON.stringify(Array.from(n)))
+					}
 
+			)
+		}
 	})
 
-	const descHook = replacePatch(
-			// @ts-ignore
-			appDetailsStore.__proto__,
-			"GetDescriptions",
-			(args) =>
-			{
-				if (appStore.GetAppOverviewByAppID(args[0]).app_type==1073741824)
-				{
-					const t = getTranslateFunc()
-					const data = metadataManager.fetchMetadata(args[0])
-					const desc = data?.description ?? t("noDescription");
-					logger.log(desc);
-					return {
-						strFullDescription: desc,
-						strSnippet: desc
-					}
-				}
-				return callOriginal;
-			}
-	);
-
-	const storeCategoryHook = replacePatch(
-			// @ts-ignore
-			appStore.allApps[0].__proto__,
-			"BHasStoreCategory",
-			function (args)
-			{
-				// @ts-ignore
-				if ((this as SteamAppOverview).app_type==1073741824)
-				{
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return replacePatch(
 					// @ts-ignore
-					const data = metadataManager.fetchMetadata((this as SteamAppOverview).appid)
-					const categories = data?.store_categories ?? [];
-					if (categories.includes(args[0]))
+					appDetailsStore.__proto__,
+					"GetDescriptions",
+					(args) =>
 					{
-						return true
+						const overview = appStore.GetAppOverviewByAppID(args[0])
+						if (overview.app_type==1073741824)
+						{
+							let appData = appDetailsStore.GetAppData(args[0])
+							if (appData && !appData?.descriptionsData)
+							{
+								const t = getTranslateFunc()
+								const data = metadataManager.fetchMetadata(args[0])
+								const desc = data?.description ?? t("noDescription");
+								logger.debug(desc);
+								appData.descriptionsData = {
+									strFullDescription: <Markdown>
+										{`# ${overview.display_name}\n` + desc}
+									</Markdown>,
+									strSnippet: <Markdown>
+										{`# ${overview.display_name}\n` + desc}
+									</Markdown>
+								}
+								appDetailsCache.SetCachedDataForApp(args[0], "descriptions", 1, appData.descriptionsData)
+							}
+						}
+						return callOriginal;
 					}
-					logger.debug(`Categories ${categories}, ${data?.store_categories}`)
-				}
-				return callOriginal;
-			}
-	);
+			)
+		}
+	})
 
-	const assocHook = replacePatch(
-			// @ts-ignore
-			appDetailsStore.__proto__,
-			"GetAssociations",
-			(args) =>
-			{
-				if (appStore.GetAppOverviewByAppID(args[0]).app_type==1073741824)
-				{
-					const data = metadataManager.fetchMetadata(args[0])
-					const devs = data?.developers ?? [];
-					const pubs = data?.publishers ?? [];
-					logger.log(devs, pubs)
-					return {
-						rgDevelopers: devs.map(value => ({
-							strName: value.name,
-							strURL: value.url
-						})),
-						rgPublishers: pubs.map(value => ({
-							strName: value.name,
-							strURL: value.url
-						})),
-						rgFranchises: []
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return afterPatch(
+					// @ts-ignore
+					appDetailsStore.__proto__,
+					"GetDescriptions",
+					(args, ret: {
+						strFullDescription: ReactNode,
+						strSnippet: ReactNode
+					}): {
+						strFullDescription: ReactNode,
+						strSnippet: ReactNode
+					} =>
+					{
+						const overview = appStore.GetAppOverviewByAppID(args[0])
+						if (overview.app_type!=1073741824)
+						{
+							return {
+								strFullDescription: <Markdown>
+									{`# ${overview.display_name}\n` + ret?.strFullDescription}
+								</Markdown>,
+                                strSnippet: <Markdown>
+	                                {`# ${overview.display_name}\n` + ret?.strSnippet}
+                                </Markdown>
+							}
+						}
+						return ret;
 					}
-				}
-				return callOriginal;
-			}
-	);
+			)
+		}
+	})
+
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return replacePatch(
+					// @ts-ignore
+					appStore.allApps[0].__proto__,
+					"BHasStoreCategory",
+					function (args)
+					{
+						// @ts-ignore
+						if ((this as SteamAppOverview).app_type==1073741824)
+						{
+							// @ts-ignore
+							const data = metadataManager.fetchMetadata((this as SteamAppOverview).appid)
+							const categories = data?.store_categories ?? [];
+							if (categories.includes(args[0]))
+							{
+								return true
+							}
+							logger.debug(`Categories ${categories}, ${data?.store_categories}`)
+						}
+						return callOriginal;
+					}
+			)
+		}
+	})
+
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return replacePatch(
+					// @ts-ignore
+					appDetailsStore.__proto__,
+					"GetAssociations",
+					(args) =>
+					{
+						if (appStore.GetAppOverviewByAppID(args[0]).app_type==1073741824)
+						{
+							let appData = appDetailsStore.GetAppData(args[0])
+							if (appData && !appData?.associationData)
+							{
+								const data = metadataManager.fetchMetadata(args[0])
+								const devs = data?.developers ?? [];
+								const pubs = data?.publishers ?? [];
+								logger.debug(devs, pubs)
+								appData.associationData = {
+									rgDevelopers: devs.map(value => ({
+										strName: value.name,
+										strURL: value.url
+									})),
+									rgPublishers: pubs.map(value => ({
+										strName: value.name,
+										strURL: value.url
+									})),
+									rgFranchises: []
+								}
+								appDetailsCache.SetCachedDataForApp(args[0], "associations", 1, appData.associationData)
+							}
+						}
+						return callOriginal;
+					}
+			)
+		}
+	})
 
 	// const runGameHook = beforePatch(
 	// 		runGame.m[runGame.prop].prototype,
@@ -188,77 +313,105 @@ export default definePlugin((serverAPI: ServerAPI) =>
 	// )
 	// logger.log("runGame", runGame)
 
-	const launchedHook = afterPatch(
-			// @ts-ignore
-			appDetailsStore.__proto__,
-			"BHasRecentlyLaunched",
-			(args) =>
-			{
-				logger.log("Ran Game!!!", args[0])
-				metadataManager.should_bypass = true
-			}
-	);
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return afterPatch(
+					// @ts-ignore
+					appDetailsStore.__proto__,
+					"BHasRecentlyLaunched",
+					(args) =>
+					{
+						logger.log("Ran Game!!!", args[0])
+						metadataManager.should_bypass = true
+					}
+			)
+		}
+	})
 
-	let patchedMenu: Patch;
-	getMenu().then((LibraryContextMenu) =>
-	{
-		patchedMenu = contextMenuPatch(LibraryContextMenu, metadataManager);
-	});
+	mountManager.addPatchMount({
+		async patch(): Promise<Patch>
+		{
+			const LibraryContextMenu = await getMenu()
+			return contextMenuPatch(LibraryContextMenu, metadataManager)
+		}
+	})
 
 	let count = 0;
-	const shortcutHook = afterPatch(
-			appStore.allApps[0].__proto__,
-			"BIsModOrShortcut",
-			function (_, ret)
-			{
-				if (ret===true)
-				{
-					const side_menu_open = (Router?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore as any)?.m_eOpenSideMenu==SideMenu.Main
-					const should_bypass = metadataManager.should_bypass
-					if (should_bypass)
+
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return afterPatch(
+					appStore.allApps[0].__proto__,
+					"BIsModOrShortcut",
+					function (_, ret)
 					{
-						count++;
-						if (count >= 3)
+						if (ret===true)
 						{
-							metadataManager.should_bypass = false;
-							count = 0
+							const side_menu_open = (Router?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore as any)?.m_eOpenSideMenu==SideMenu.Main
+							const should_bypass = metadataManager.should_bypass
+							// @ts-ignore
+							if (!((Router.WindowStore?.GamepadUIMainWindowInstance?.m_history.location.pathname as string).includes('/library/app') || (Router.WindowStore?.GamepadUIMainWindowInstance?.m_history.location.pathname as string).includes('/apprunning')))
+								return false
+							if (should_bypass)
+							{
+								count++;
+								if (count >= 3)
+								{
+									metadataManager.should_bypass = false;
+									count = 0
+								}
+								logger.log(`bypassed ${_[0]}`)
+							}
+							return should_bypass || side_menu_open
 						}
-						logger.log(`bypassed ${_[0]}`)
+						return ret;
 					}
-					return should_bypass || side_menu_open
-				}
-				return ret;
-			}
-	);
-	const releaseDateHook = afterPatch(
-			appStore.allApps[0].__proto__,
-			"GetCanonicalReleaseDate",
-			function (_, ret)
-			{
-				logger.log(ret);
-				// @ts-ignore
-				if (this.app_type==1073741824)
-				{
-					// @ts-ignore
-					const data = metadataManager.fetchMetadata(this.appid);
-					logger.log("data", data);
-					if (data?.release_date)
+			)
+		}
+	})
+
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return afterPatch(
+					appStore.allApps[0].__proto__,
+					"GetCanonicalReleaseDate",
+					function (_, ret)
 					{
-						return data?.release_date
+						logger.log(ret);
+						// @ts-ignore
+						if (this.app_type==1073741824)
+						{
+							// @ts-ignore
+							const data = metadataManager.fetchMetadata(this.appid);
+							logger.log("data", data);
+							if (data?.release_date)
+							{
+								return data?.release_date
+							}
+						}
+						return ret;
 					}
-				}
-				return ret;
-			}
-	);
-	const perClientDataHook = afterPatch(
-			appStore.allApps[0].__proto__,
-			"GetPerClientData",
-			function (_, ret)
-			{
-				metadataManager.should_bypass = true
-				return ret;
-			}
-	);
+			)
+		}
+	})
+
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return afterPatch(
+					appStore.allApps[0].__proto__,
+					"GetPerClientData",
+					function (_, ret)
+					{
+						metadataManager.should_bypass = true
+						return ret;
+					}
+			)
+		}
+	})
 
 	// const appInfoHook = afterPatch(AppInfoContainer.prototype, 'render', (_: Record<string, unknown>[], component1: any) =>
 	// {
@@ -268,7 +421,23 @@ export default definePlugin((serverAPI: ServerAPI) =>
 	// 	return component1;
 	// });
 
-	void metadataManager.init();
+	mountManager.addMount({
+		mount: async function (): Promise<void> {
+			if (await checkOnlineStatus())
+			{
+				await metadataManager.init();
+			} else
+			{
+				await waitForOnline();
+				await metadataManager.init();
+			}
+		},
+		unMount: async function (): Promise<void> {
+			await metadataManager.deinit();
+		}
+	});
+
+	const unregister = mountManager.register()
 
 	return {
 		title: <Title>MetaDeck</Title>,
@@ -278,17 +447,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 		{
 			metadataManager.deinit().then(() =>
 			{
-				descHook?.unpatch();
-				assocHook?.unpatch();
-				storeCategoryHook?.unpatch();
-				launchedHook?.unpatch();
-				// killedHook?.unpatch();
-				shortcutHook?.unpatch();
-				releaseDateHook?.unpatch();
-				perClientDataHook?.unpatch();
-				patchedMenu?.unpatch();
-				// sectionHook?.unpatch();
-				// appInfoHook?.unpatch();
+				unregister();
 			});
 		},
 	};

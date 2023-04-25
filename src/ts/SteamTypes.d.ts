@@ -1,6 +1,6 @@
-import React, {ReactElement} from "react";
+import React, {ReactElement, ReactNode} from "react";
 import {AppDetails} from "decky-frontend-lib";
-import {AppAchievement, AppAchievements, Hook} from "./SteamClient";
+import {Hook} from "./SteamClient";
 
 type Hook = {
 	unregister: () => void
@@ -11,13 +11,13 @@ type AllAchievements =
 		   loading?: boolean
 		   data?: {
 			   achieved: {
-				   [key: string]: AppAchievement
+				   [key: string]: SteamAppAchievement
 			   },
 			   hidden: {
-				   [key: string]: AppAchievement
+				   [key: string]: SteamAppAchievement
 			   },
 			   unachieved: {
-				   [key: string]: AppAchievement
+				   [key: string]: SteamAppAchievement
 			   },
 		   }
 	   }
@@ -278,10 +278,40 @@ type CollectionStore = {
 	deckDesktopApps: SteamCollection;
 }
 
+type AppData = {
+	"details": SteamAppDetails,
+	"socialMediaData": any,
+	"associationData": {
+		rgDevelopers: {
+			strName: string,
+			strURL: string
+		}[],
+		rgPublishers: {
+			strName: string,
+			strURL: string
+		}[]
+		rgFranchises: {
+			strName: string,
+			strURL: string
+		}[]
+	},
+	"appDetailsSpotlight": null,
+	"descriptionsData": {
+		strFullDescription: ReactNode,
+		strSnippet: ReactNode
+	},
+	"screenshots": null,
+	"customImageInfoRtime": number,
+	"cRegistered": 0,
+	"listeners": [],
+	"hAppDetails": {},
+	"bLoadingAchievments": boolean
+}
+
 type AppDetailsStore = {
 	RegisterForAppData: (app_id: number, handler: (details: AppDetails) => void) => Hook
 
-	GetAchievements(app_id: number): AppAchievements;
+	GetAchievements(app_id: number): SteamAppAchievements;
 
 }
 
