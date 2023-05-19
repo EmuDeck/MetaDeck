@@ -1,4 +1,15 @@
 {
 	"changeMetadata": "Cambia Metadati",
-	"noDescription": "Nessuna descrizione trovata"
+	"noDescription": "Nessuna descrizione trovata",
+	"save": "Save",
+	"refresh": "Refresh",
+	"loading": "Loading",
+	"fetching": "Fetching",
+	"noMetadata": "No Metadata Found",
+	"foundMetadata": "Description: %%, Verified status: %%",
+	"currentGame": "%%: %%",
+	"verified": "Verified",
+	"playable": "Playable",
+	"unsupported": "Unsupported",
+	"unknown": "Unknown"
 }
