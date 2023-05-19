@@ -1,14 +1,32 @@
 import {ServerAPI} from "decky-frontend-lib";
-import {HTTPResult, MetadataDictionary, MetadataIdDictionary} from "./Interfaces";
+import {HTTPResult, MetadataData, MetadataDictionary, MetadataIdDictionary} from "./Interfaces";
+import {toNumber} from "lodash-es";
 
 export async function get_metadata(serverAPI: ServerAPI)
 {
 	return new Promise<MetadataDictionary>(async (resolve, reject) =>
 	{
-		let result = await serverAPI.callPluginMethod<{}, MetadataDictionary>("get_metadata", {});
+
+		let result = await serverAPI.callPluginMethod<{}, number[]>("get_metadata_keys", {});
 		if (result.success)
 		{
-			resolve(result.result);
+			let metadata: MetadataDictionary = {};
+			for (const key of result.result)
+			{
+				let result = await serverAPI.callPluginMethod<{
+					key: number
+				}, MetadataData>("get_metadata_for_key", {
+					key: key,
+				});
+				if (result.success)
+				{
+					metadata[key] = result.result;
+				} else
+				{
+					reject(new Error(result.result));
+				}
+			}
+			resolve(metadata);
 		}
 		else reject(new Error(result.result));
 	});
@@ -18,16 +36,21 @@ export async function set_metadata(serverAPI: ServerAPI, metadata: MetadataDicti
 {
 	return new Promise<void>(async (resolve, reject) =>
 	{
-		let result = await serverAPI.callPluginMethod<{
-			metadata: MetadataDictionary,
-		}, void>("set_metadata", {
-			metadata
-		});
-		if (result.success)
+		for (const [key, value] of Object.entries(metadata))
 		{
-			resolve(result.result);
+			let result = await serverAPI.callPluginMethod<{
+				key: number,
+				metadata: MetadataData,
+			}, void>("set_metadata_for_key", {
+				key: toNumber(key),
+				metadata: value
+			});
+			if (!result.success)
+			{
+				reject(new Error(result.result));
+			}
 		}
-		else reject(new Error(result.result));
+		resolve();
 	});
 }
 

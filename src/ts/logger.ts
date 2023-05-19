@@ -1,56 +1,56 @@
-export const log = (name: string, ...args: any[]) => {
-		console.log(
-			   `%c MetaDeck %c ${name} %c`,
-			   'background: #16a085; color: black;',
-			   'background: #1abc9c; color: black;',
-			   'background: transparent;',
-			   ...args,
-		);
+export const log = (name: string) => {
+	return console.log.bind(
+			window.console,
+			`%c MetaDeck %c ${name} %c`,
+			'background: #16a085; color: black;',
+			'background: #1abc9c; color: black;',
+			'background: transparent;',
+	);
 };
 
-export const debug = (name: string, ...args: any[]) => {
+export const debug = (name: string) => {
 	if (process.env.NODE_ENV === 'development')
-		console.debug(
-			   `%c MetaDeck %c ${name} %c`,
-			   'background: #16a085; color: black;',
-			   'background: #1abc9c; color: black;',
-			   'color: blue;',
-			   ...args,
-		);
-};
+		return console.debug.bind(window.console,
+				`%c MetaDeck %c ${name} %c`,
+				'background: #16a085; color: black;',
+				'background: #1abc9c; color: black;',
+				'color: blue;');
+	else return function(..._: any[]){}
+}
 
-export const error = (name: string, ...args: any[]) => {
-	// if (process.env.NODE_ENV === 'development')
-		console.error(
-			   `%c MetaDeck %c ${name} %c`,
-			   'background: #16a085; color: black;',
-			   'background: #FF0000;',
-			   'background: transparent;',
-			   ...args,
-		);
+export const error = (name: string) => {
+	return console.error.bind(window.console,
+			`%c MetaDeck %c ${name} %c`,
+			'background: #16a085; color: black;',
+			'background: #FF0000;',
+			'background: transparent;'
+	);
 };
 
 class Logger
 {
-	constructor(private name: string)
+	get log(): any
+	{
+		return this._log;
+	}
+	get debug(): any
+	{
+		return this._debug;
+	}
+	get error(): any
+	{
+		return this._error;
+	}
+	constructor(private readonly name: string)
 	{
 		this.name = name;
 	}
 
-	log(...args: any[])
-	{
-		log(this.name, ...args);
-	}
+	private _log = log.bind(this)(this.name).bind(this);
 
-	debug(...args: any[])
-	{
-		debug(this.name, ...args);
-	}
+	private _debug = debug.bind(this)(this.name).bind(this);
 
-	error(...args: any[])
-	{
-		error(this.name, ...args);
-	}
+	private _error = error.bind(this)(this.name).bind(this);
 }
 
 export default Logger;

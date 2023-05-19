@@ -46,7 +46,6 @@ export const MetaDataModal: VFC<{ appId: number, manager: MetadataManager, close
 						onOK={async () =>
 						{
 							await manager.setMetadataId(appId, metadataId)
-							await manager.removeCache(`${appId}`)
 							closeModal();
 						}}
 						closeModal={closeModal}

@@ -21,15 +21,9 @@ export interface MetadataData
 	store_categories: StoreCategory[],
 }
 
-export interface MetadataDictionary
-{
-	[index: number]: MetadataData
-}
+export type MetadataDictionary = Record<number, MetadataData>
 
-export interface MetadataIdDictionary
-{
-	[index: number]: number
-}
+export type MetadataIdDictionary = Record<number, number>
 
 export interface HTTPResult
 {

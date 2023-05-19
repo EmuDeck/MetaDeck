@@ -1,8 +1,7 @@
 import {
-	afterPatch, beforePatch,
-	callOriginal,
-	definePlugin, Focusable, Navigation, Patch,
-	replacePatch, Router, ServerAPI, sleep,
+	afterPatch, beforePatch, ButtonItem,
+	callOriginal, definePlugin, DropdownItem, Focusable, Navigation, PanelSection, Patch,
+	replacePatch, Router, ServerAPI, sleep, SteamSpinner, useParams,
 
 
 } from "decky-frontend-lib";
@@ -10,16 +9,19 @@ import {FaDatabase} from "react-icons/fa";
 
 import {MetadataManager} from "./MetadataManager";
 import {Title} from "./Title";
-import {App} from "./App";
+import {MetaDeckComponent} from "./MetaDeckComponent";
 import Logger from "./logger";
 import contextMenuPatch, {getMenu} from "./contextMenuPatch";
-import {getTranslateFunc} from "./useTranslations";
+import {getTranslateFunc, useTranslations} from "./useTranslations";
 import {AppDetailsStore, AppStore, CollectionStore, SteamAppOverview} from "./SteamTypes";
 import {EventBus, MountManager} from "./System";
-import {FunctionComponent, ReactNode, useRef} from "react";
+import {FC, ReactNode, useEffect, useRef, useState, VFC} from "react";
 import {ReactMarkdown, ReactMarkdownOptions} from "react-markdown/lib/react-markdown";
 import remarkGfm from "remark-gfm";
 import {patchAppPage} from "./RoutePatches";
+import {MetadataData} from "./Interfaces";
+import React from "react";
+import {MetaDeckState, MetaDeckStateContextProvider} from "./hooks/metadataContext";
 
 interface Plugin
 {
@@ -80,28 +82,35 @@ declare global
 // 	return;
 // });
 
-interface MarkdownProps extends ReactMarkdownOptions {
+interface MarkdownProps extends ReactMarkdownOptions
+{
 	onDismiss?: () => void;
 }
 
-const Markdown: FunctionComponent<MarkdownProps> = (props) => {
+const Markdown: FC<MarkdownProps> = (props) =>
+{
 	return (
 			<Focusable>
 				<ReactMarkdown
 						remarkPlugins={[remarkGfm]}
 						components={{
-							div: (nodeProps) => <Focusable {...nodeProps.node.properties}>{nodeProps.children}</Focusable>,
-							a: (nodeProps) => {
+							div: (nodeProps) =>
+									<Focusable {...nodeProps.node.properties}>{nodeProps.children}</Focusable>,
+							a: (nodeProps) =>
+							{
 								const aRef = useRef<HTMLAnchorElement>(null);
 								return (
 										// TODO fix focus ring
 										<Focusable
-												onActivate={() => {}}
-												onOKButton={() => {
+												onActivate={() =>
+												{
+												}}
+												onOKButton={() =>
+												{
 													props.onDismiss?.();
 													Navigation.NavigateToExternalWeb(aRef.current!.href);
 												}}
-												style={{ display: 'inline' }}
+												style={{display: 'inline'}}
 										>
 											<a ref={aRef} {...nodeProps.node.properties}>
 												{nodeProps.children}
@@ -116,13 +125,94 @@ const Markdown: FunctionComponent<MarkdownProps> = (props) => {
 	);
 };
 
+const Metadata: VFC<{ manager: MetadataManager }> = ({manager}) =>
+{
+	const {appid} = useParams<{ appid: string }>()
+	const appId = +appid;
+	const [metadata, setMetadata] = useState<{ [p: number]: MetadataData } | undefined>();
+	const [metadataId, setMetadataId] = useState<number>(0);
+	const [selected, setSelected] = useState<MetadataData | undefined>();
+	const [loaded, setLoaded] = useState<boolean>(false);
+	const t = useTranslations()
+
+	useEffect(() =>
+	{
+		if (appId!==0 && metadata===undefined)
+		{
+			manager.getAllMetadataForGame(appId).then(data =>
+			{
+				setMetadata(data);
+				if (selected===undefined)
+				{
+					manager.getMetadataId(appId).then(id =>
+					{
+						setSelected(!!data && !!id ? data[id]:undefined);
+						setMetadataId(id ?? 0);
+						setLoaded(true);
+					});
+				}
+			})
+		}
+	});
+
+	if (appId===0) return null;
+	return (
+			<div style={{
+				marginTop: '40px',
+				height: 'calc( 100% - 40px )',
+			}}>
+				<PanelSection title={t("changeMetadata")}>
+					{loaded ?
+							<>
+								<DropdownItem rgOptions={
+									metadata ? [...Object.values(metadata).map(value =>
+													{
+														return {
+															label: `${value.title} (${value.id})`,
+															options: undefined,
+															data: value
+														}
+													}
+											),
+												{
+													label: `None (0)`,
+													options: undefined,
+													data: undefined
+												}]:
+											[{
+												label: `None (0)`,
+												options: undefined,
+												data: undefined
+											}]
+								} selectedOption={selected}
+								              onChange={data =>
+								              {
+									              setSelected(data.data)
+									              setMetadataId(data.data?.id ?? 0)
+								              }}/>
+								{selected?.title && selected?.description ? <Markdown>
+									{`# ${selected.title}\n` + selected.description}
+								</Markdown>:null}
+								<ButtonItem onClick={async () =>
+								{
+									await manager.setMetadataId(appId, metadataId)
+								}}>
+									{t("save")}
+								</ButtonItem>
+							</>:<SteamSpinner/>
+					}
+				</PanelSection>
+			</div>
+	);
+}
+
 export default definePlugin((serverAPI: ServerAPI) =>
 {
 	const logger = new Logger("Index");
-	const metadataManager = new MetadataManager(serverAPI);
-
-	const eventBus = new EventBus()
-	const mountManager = new MountManager(eventBus, logger)
+	const state = new MetaDeckState(serverAPI)
+	const metadataManager = new MetadataManager(state);
+	const eventBus = new EventBus();
+	const mountManager = new MountManager(eventBus, logger, serverAPI);
 	let bypassCounter = 0;
 
 	const checkOnlineStatus = async () =>
@@ -147,11 +237,13 @@ export default definePlugin((serverAPI: ServerAPI) =>
 	}
 
 	mountManager.addPatchMount({
-		patch(): Patch {
+		patch(): Patch
+		{
 			return replacePatch(
 					appDetailsCache,
 					"SetCachedDataForApp",
-					function ([e, t, r, i]) {
+					function ([e, t, r, i])
+					{
 						// @ts-ignore
 						this.m_mapAppDetailsCache.has(e) || this.m_mapAppDetailsCache.set(e, new Map),
 								// @ts-ignore
@@ -162,9 +254,8 @@ export default definePlugin((serverAPI: ServerAPI) =>
 						// @ts-ignore
 						let n = this.m_mapAppDetailsCache.get(e);
 						// if (appStore.GetAppOverviewByAppID(e).app_type !== 1073741824)
-							// return SteamClient.Apps.SetCachedAppDetails(e, JSON.stringify(Array.from(n)))
+						// return SteamClient.Apps.SetCachedAppDetails(e, JSON.stringify(Array.from(n)))
 					}
-
 			)
 		}
 	})
@@ -227,9 +318,9 @@ export default definePlugin((serverAPI: ServerAPI) =>
 								strFullDescription: <Markdown>
 									{`# ${overview.display_name}\n` + ret?.strFullDescription}
 								</Markdown>,
-                                strSnippet: <Markdown>
-	                                {`# ${overview.display_name}\n` + ret?.strSnippet}
-                                </Markdown>
+								strSnippet: <Markdown>
+									{`# ${overview.display_name}\n` + ret?.strSnippet}
+								</Markdown>
 							}
 						}
 						return ret;
@@ -347,12 +438,16 @@ export default definePlugin((serverAPI: ServerAPI) =>
 					{
 						if (ret===true)
 						{
-							// @ts-ignore
-							if (Router?.WindowStore?.GamepadUIMainWindowInstance?.m_history?.location?.pathname === '/library/home' || metadataManager.bypassBypass > 0)
+							if (metadataManager.bypassBypass > 0)
 							{
 								logger.log("Bypassing", metadataManager.bypassBypass)
 								if (metadataManager.bypassBypass > 0)
 									metadataManager.bypassBypass--
+								return false;
+							}
+							// @ts-ignore
+							if (Router?.WindowStore?.GamepadUIMainWindowInstance?.m_history?.location?.pathname==='/library/home')
+							{
 								return false;
 							}
 							if (bypassCounter > 0)
@@ -360,7 +455,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 								bypassCounter--;
 								logger.debug(`bypassed ${_[0]}`)
 							}
-							return bypassCounter === -1 || bypassCounter > 0
+							return bypassCounter=== -1 || bypassCounter > 0
 						}
 						return ret;
 					}
@@ -477,8 +572,11 @@ export default definePlugin((serverAPI: ServerAPI) =>
 
 	mountManager.addMount(patchAppPage(serverAPI, metadataManager));
 
+	mountManager.addPageMount("/metadeck/metadata/:appid", () => <Metadata manager={metadataManager}/>)
+
 	mountManager.addMount({
-		mount: async function (): Promise<void> {
+		mount: async function (): Promise<void>
+		{
 			if (await checkOnlineStatus())
 			{
 				await metadataManager.init();
@@ -488,7 +586,8 @@ export default definePlugin((serverAPI: ServerAPI) =>
 				await metadataManager.init();
 			}
 		},
-		unMount: async function (): Promise<void> {
+		unMount: async function (): Promise<void>
+		{
 			await metadataManager.deinit();
 		}
 	});
@@ -497,7 +596,10 @@ export default definePlugin((serverAPI: ServerAPI) =>
 
 	return {
 		title: <Title>MetaDeck</Title>,
-		content: <App serverAPI={serverAPI} metadataManager={() => metadataManager}/>,
+		content:
+				<MetaDeckStateContextProvider metaDeckState={state}>
+					<MetaDeckComponent/>
+				</MetaDeckStateContextProvider>,
 		icon: <FaDatabase/>,
 		onDismount()
 		{

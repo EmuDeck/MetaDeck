@@ -4,26 +4,21 @@ import {
 	fakeRenderComponent,
 	findInReactTree,
 	findInTree,
-	MenuItem,
-	showModal
+	MenuItem, Navigation,
 } from "decky-frontend-lib";
-import {MetaDataModal} from "./MetaDataModal";
 import {MetadataManager} from "./MetadataManager";
 import {VFC} from "react";
 import {useTranslations} from "./useTranslations";
 
 
-const MetaDeckChangeMetadata: VFC<{ appId: number, metadataManager: MetadataManager }> = ({appId, metadataManager}) =>
+const MetaDeckChangeMetadata: VFC<{ appId: number, metadataManager: MetadataManager }> = ({appId}) =>
 {
 	const t = useTranslations()
 	return <MenuItem
 			onSelected={async () =>
 			{
-				await showModal(
-						<MetaDataModal appId={appId} manager={metadataManager} closeModal={() =>
-						{
-						}}/>
-				)
+
+				Navigation.Navigate(`/metadeck/metadata/${appId}`)
 			}}
 	>
 		{t("changeMetadata")}...

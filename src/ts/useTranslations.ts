@@ -34,3 +34,10 @@ export function getTranslateFunc() {
 		}
 	}
 }
+
+export function format(fmt: string, ...args: any[]){
+	return fmt
+			.split("%%")
+			.reduce((aggregate, chunk, i) =>
+					aggregate + chunk + (args[i] || ""), "");
+}

@@ -301,7 +301,7 @@ type AppData = {
 	"descriptionsData": {
 		strFullDescription: ReactNode,
 		strSnippet: ReactNode
-	},
+	} | undefined,
 	"screenshots": null,
 	"customImageInfoRtime": number,
 	"cRegistered": 0,

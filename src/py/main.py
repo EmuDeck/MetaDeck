@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import TypeVar, Dict
+from typing import TypeVar, Dict, List
 
 from settings import SettingsManager
 
@@ -33,24 +33,30 @@ class Plugin:
 		"""
 		await Plugin.commit(self)
 
-	async def get_metadata(self) -> Dict[int, Dict[str, any]] | None:
+	async def get_metadata_for_key(self, key: int) -> Dict[str, any] | None:
 		"""
-		Waits until metadata is loaded, then returns the tabs
+		Waits until metadata is loaded, then returns the metadata
 
 		:return: The metadata
 		"""
 		while Plugin.metadata is None:
 			await asyncio.sleep(0.1)
 		logger.debug(f"Got metadata {Plugin.metadata}")
-		return Plugin.metadata
+		return Plugin.metadata[key]
 
-	async def set_metadata(self, metadata: Dict[int, Dict[str, any]]):
-		Plugin.metadata = metadata
+	async def set_metadata_for_key(self, key: int, metadata: Dict[str, any]):
+		Plugin.metadata[key] = metadata
 		await Plugin.set_setting(self, "metadata", Plugin.metadata)
+
+	async def get_metadata_keys(self) -> List[int] | None:
+		while Plugin.metadata is None:
+			await asyncio.sleep(0.1)
+		logger.debug(f"Got metadata keys {list(map(int, Plugin.metadata.keys()))}")
+		return list(map(int, Plugin.metadata.keys()))
 
 	async def get_metadata_id(self) -> Dict[int, int] | None:
 		"""
-		Waits until metadata is loaded, then returns the tabs
+		Waits until metadata is loaded, then returns the user's custom ids
 
 		:return: The metadata
 		"""

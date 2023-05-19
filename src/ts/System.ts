@@ -2,7 +2,9 @@ import Logger from "./logger";
 import {SteamAppOverview} from "./SteamTypes";
 import {Promise} from "bluebird";
 import {registerForLoginStateChange, waitForServicesInitialized} from "./LibraryInitializer";
-import { Patch } from "decky-frontend-lib";
+import {Patch, ServerAPI} from "decky-frontend-lib";
+import {ComponentType} from "react";
+import {RouteProps} from "react-router";
 
 let systemClock: Clock = {
 	getTimeMs() {
@@ -44,9 +46,11 @@ export class MountManager
 {
 	private mounts: Array<Mountable | AsyncMountable> = []
 	private logger: Logger;
+	private serverAPI: ServerAPI;
 	private eventBus: EventBus
 	private clock: Clock;
-	constructor(eventBus: EventBus, logger: Logger, clock: Clock = systemClock) {
+	constructor(eventBus: EventBus, logger: Logger, serverAPI: ServerAPI, clock: Clock = systemClock) {
+		this.serverAPI = serverAPI;
 		this.logger = logger;
 		this.eventBus = eventBus
 		this.clock = clock;
@@ -66,6 +70,18 @@ export class MountManager
 			async unMount()
 			{
 				patch?.unpatch();
+			}
+		})
+	}
+
+	addPageMount(path: string, component: ComponentType, props?: Omit<RouteProps, 'path' | 'children'>): void {
+		let self = this;
+		this.addMount({
+			mount(): void {
+				self.serverAPI.routerHook.addRoute(path, component, props)
+			},
+			unMount(): void {
+				self.serverAPI.routerHook.removeRoute(path)
 			}
 		})
 	}
