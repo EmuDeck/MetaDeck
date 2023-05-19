@@ -76,7 +76,8 @@ export interface Publisher
 export enum YesNo
 {
 	NO = "No",
-	YES = "Yes"
+	YES = "Yes",
+	PARTIAL = "Partial"
 }
 
 export enum SteamDeckCompatCategory
@@ -116,7 +117,7 @@ export interface VerifiedDBResults
 	"Console": string,
 	"Game": string,
 	"Emulator": string,
-	"Boots?": YesNo,
-	"Playable?": YesNo
+	"Boots": YesNo,
+	"Playable": YesNo
 }
 

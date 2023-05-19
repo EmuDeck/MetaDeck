@@ -39,21 +39,22 @@ export enum PlatformCategory {
 }
 export class MetadataManager
 {
-	set should_bypass(value: boolean)
+	get bypassBypass(): number
 	{
-		this._should_bypass = value;
+		return this._bypassBypass;
 	}
 
-	get should_bypass(): boolean
+	set bypassBypass(value: number)
 	{
-		return this._should_bypass;
+		this._bypassBypass = value;
 	}
 
 	private readonly serverAPI: ServerAPI;
 	private verifiedDB: VerifiedDBResults[] = [];
 	private metadata: MetadataDictionary = {};
 	private logger: Logger = new Logger("MetadataManager");
-	private _should_bypass: boolean = false;
+
+	private _bypassBypass: number = 0;
 
 	constructor(serverAPI: ServerAPI)
 	{
@@ -269,10 +270,10 @@ export class MetadataManager
 						let compat_category: SteamDeckCompatCategory;
 						if (compat_category_result)
 						{
-							if (compat_category_result["Boots?"]===YesNo.YES && compat_category_result["Playable?"]===YesNo.YES)
+							if (compat_category_result?.Boots===YesNo.YES && compat_category_result?.Playable===YesNo.YES)
 							{
 								compat_category = SteamDeckCompatCategory.VERIFIED;
-							} else if (compat_category_result["Boots?"]===YesNo.YES && compat_category_result["Playable?"]===YesNo.NO)
+							} else if (compat_category_result?.Boots===YesNo.YES && compat_category_result?.Playable===YesNo.NO)
 							{
 								compat_category = SteamDeckCompatCategory.PLAYABLE
 							} else
@@ -280,7 +281,6 @@ export class MetadataManager
 								compat_category = SteamDeckCompatCategory.UNSUPPORTED
 							}
 						} else compat_category = SteamDeckCompatCategory.UNKNOWN;
-						compat_category = SteamDeckCompatCategory.VERIFIED
 
 						appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = compat_category;
 						let data: MetadataData = {
@@ -460,10 +460,10 @@ export class MetadataManager
 							let compat_category: SteamDeckCompatCategory;
 							if (compat_category_result)
 							{
-								if (compat_category_result["Boots?"]===YesNo.YES && compat_category_result["Playable?"]===YesNo.YES)
+								if (compat_category_result?.Boots===YesNo.YES && compat_category_result?.Playable===YesNo.YES)
 								{
 									compat_category = SteamDeckCompatCategory.VERIFIED;
-								} else if (compat_category_result["Boots?"]===YesNo.YES && compat_category_result["Playable?"]===YesNo.NO)
+								} else if (compat_category_result?.Boots===YesNo.YES && (compat_category_result?.Playable===YesNo.NO || compat_category_result?.Playable===YesNo.PARTIAL))
 								{
 									compat_category = SteamDeckCompatCategory.PLAYABLE
 								} else
@@ -471,7 +471,7 @@ export class MetadataManager
 									compat_category = SteamDeckCompatCategory.UNSUPPORTED
 								}
 							} else compat_category = SteamDeckCompatCategory.UNKNOWN;
-							compat_category = SteamDeckCompatCategory.VERIFIED
+							this.logger.debug("compat_category: ", closest_verified, compat_category_result, compat_category)
 							appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = compat_category;
 							let data: MetadataData = {
 								title: game.name ?? "No Title",
@@ -506,6 +506,8 @@ export class MetadataManager
 				{
 					this.logger.debug(`Fetched metadata for ${app_id}: `, data);
 					this.metadata[app_id] = data;
+					appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
+					// appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = SteamDeckCompatCategory.VERIFIED
 					void this.saveData();
 				}
 				wait = false;
@@ -517,8 +519,8 @@ export class MetadataManager
 			return this.metadata[app_id];
 		} else
 		{
-			// appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
-			appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = SteamDeckCompatCategory.VERIFIED
+			appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
+			// appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = SteamDeckCompatCategory.VERIFIED
 			this.metadata[app_id].store_categories?.forEach(category => appStore.GetAppOverviewByAppID(app_id).m_setStoreCategories.add(category))
 			return this.metadata[app_id];
 		}
@@ -533,13 +535,15 @@ export class MetadataManager
 			{
 				this.logger.debug(`Fetched metadata for ${app_id}: `, data);
 				this.metadata[app_id] = data;
+				appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
+				// appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = SteamDeckCompatCategory.VERIFIED
 				void this.saveData();
 			}
 			return this.metadata[app_id];
 		} else
 		{
-			// appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
-			appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = SteamDeckCompatCategory.VERIFIED
+			appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
+			// appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = SteamDeckCompatCategory.VERIFIED
 			this.metadata[app_id].store_categories?.forEach(category => appStore.GetAppOverviewByAppID(app_id).m_setStoreCategories.add(category))
 			return this.metadata[app_id];
 		}

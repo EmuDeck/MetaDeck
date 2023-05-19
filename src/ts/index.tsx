@@ -1,26 +1,25 @@
 import {
-	afterPatch,
+	afterPatch, beforePatch,
 	callOriginal,
 	definePlugin, Focusable, Navigation, Patch,
-	replacePatch, Router,
-	ServerAPI, SideMenu, sleep,
+	replacePatch, Router, ServerAPI, sleep,
 
 
 } from "decky-frontend-lib";
 import {FaDatabase} from "react-icons/fa";
 
-import {AppDetailsStore, AppStore} from "./AppStore";
 import {MetadataManager} from "./MetadataManager";
 import {Title} from "./Title";
 import {App} from "./App";
 import Logger from "./logger";
 import contextMenuPatch, {getMenu} from "./contextMenuPatch";
 import {getTranslateFunc} from "./useTranslations";
-import {CollectionStore, SteamAppOverview} from "./SteamTypes";
+import {AppDetailsStore, AppStore, CollectionStore, SteamAppOverview} from "./SteamTypes";
 import {EventBus, MountManager} from "./System";
 import {FunctionComponent, ReactNode, useRef} from "react";
 import {ReactMarkdown, ReactMarkdownOptions} from "react-markdown/lib/react-markdown";
 import remarkGfm from "remark-gfm";
+import {patchAppPage} from "./RoutePatches";
 
 interface Plugin
 {
@@ -124,6 +123,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 
 	const eventBus = new EventBus()
 	const mountManager = new MountManager(eventBus, logger)
+	let bypassCounter = 0;
 
 	const checkOnlineStatus = async () =>
 	{
@@ -323,7 +323,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 					(args) =>
 					{
 						logger.log("Ran Game!!!", args[0])
-						metadataManager.should_bypass = true
+						bypassCounter = 4
 					}
 			)
 		}
@@ -337,8 +337,6 @@ export default definePlugin((serverAPI: ServerAPI) =>
 		}
 	})
 
-	let count = 0;
-
 	mountManager.addPatchMount({
 		patch(): Patch
 		{
@@ -349,23 +347,79 @@ export default definePlugin((serverAPI: ServerAPI) =>
 					{
 						if (ret===true)
 						{
-							const side_menu_open = (Router?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore as any)?.m_eOpenSideMenu==SideMenu.Main
-							const should_bypass = metadataManager.should_bypass
 							// @ts-ignore
-							if (!((Router.WindowStore?.GamepadUIMainWindowInstance?.m_history.location.pathname as string).includes('/library/app') || (Router.WindowStore?.GamepadUIMainWindowInstance?.m_history.location.pathname as string).includes('/apprunning')))
-								return false
-							if (should_bypass)
+							if (Router?.WindowStore?.GamepadUIMainWindowInstance?.m_history?.location?.pathname === '/library/home' || metadataManager.bypassBypass > 0)
 							{
-								count++;
-								if (count >= 3)
-								{
-									metadataManager.should_bypass = false;
-									count = 0
-								}
-								logger.log(`bypassed ${_[0]}`)
+								logger.log("Bypassing", metadataManager.bypassBypass)
+								if (metadataManager.bypassBypass > 0)
+									metadataManager.bypassBypass--
+								return false;
 							}
-							return should_bypass || side_menu_open
+							if (bypassCounter > 0)
+							{
+								bypassCounter--;
+								logger.debug(`bypassed ${_[0]}`)
+							}
+							return bypassCounter === -1 || bypassCounter > 0
 						}
+						return ret;
+					}
+			)
+		}
+	})
+
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return beforePatch(
+					appStore.allApps[0].__proto__,
+					"GetGameID",
+					function (_)
+					{
+						bypassCounter = -1
+					}
+			)
+		}
+	})
+
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return afterPatch(
+					appStore.allApps[0].__proto__,
+					"GetGameID",
+					function (_, ret)
+					{
+						bypassCounter = 0
+						return ret;
+					}
+			)
+		}
+	})
+
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return beforePatch(
+					appStore.allApps[0].__proto__,
+					"GetPrimaryAppID",
+					function (_)
+					{
+						bypassCounter = -1
+					}
+			)
+		}
+	})
+
+	mountManager.addPatchMount({
+		patch(): Patch
+		{
+			return afterPatch(
+					appStore.allApps[0].__proto__,
+					"GetPrimaryAppID",
+					function (_, ret)
+					{
+						bypassCounter = 0
 						return ret;
 					}
 			)
@@ -406,7 +460,7 @@ export default definePlugin((serverAPI: ServerAPI) =>
 					"GetPerClientData",
 					function (_, ret)
 					{
-						metadataManager.should_bypass = true
+						bypassCounter = 4;
 						return ret;
 					}
 			)
@@ -420,6 +474,8 @@ export default definePlugin((serverAPI: ServerAPI) =>
 	//
 	// 	return component1;
 	// });
+
+	mountManager.addMount(patchAppPage(serverAPI, metadataManager));
 
 	mountManager.addMount({
 		mount: async function (): Promise<void> {
