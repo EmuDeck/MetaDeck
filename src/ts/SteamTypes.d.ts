@@ -296,7 +296,7 @@ type AppData = {
 			strName: string,
 			strURL: string
 		}[]
-	},
+	} | undefined,
 	"appDetailsSpotlight": null,
 	"descriptionsData": {
 		strFullDescription: ReactNode,

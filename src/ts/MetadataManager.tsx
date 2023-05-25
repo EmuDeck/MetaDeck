@@ -14,13 +14,22 @@ import {
 } from "./Interfaces";
 
 import {Company, Game, GameMode, InvolvedCompany, MultiplayerMode, Platform} from "igdb-api-types"
-import {truncate} from "lodash-es";
-import {authenticate_igdb, get_metadata, get_metadata_id, set_metadata, set_metadata_id} from "./Python";
+import {DebouncedFunc, throttle, truncate} from "lodash-es";
+import {
+	authenticate_igdb,
+	get_metadata,
+	get_metadata_id,
+	set_metadata,
+	set_metadata_for_key,
+	set_metadata_id
+} from "./Python";
 import Logger from "./logger";
 import {Promise} from "bluebird";
 import {MetaDeckState} from "./hooks/metadataContext";
 import {SteamAppOverview} from "./SteamTypes";
 import {format, getTranslateFunc} from "./useTranslations";
+import {Markdown} from "./markdown";
+import {runInAction} from "mobx";
 
 const database = "metadeck";
 
@@ -141,22 +150,16 @@ export class MetadataManager implements Manager
 
 	private _state: MetaDeckState;
 
-	public async updateCache(appId: string, newData: MetadataData)
-	{
-		await localforage.setItem(appId, newData);
-		await this.saveData();
-	};
 
-	public async removeCache(appId: string)
+	public async removeCache(app_id: number)
 	{
 		// await localforage.removeItem(appId);
-		delete this.metadata[appId];
-		await this.saveData();
+		delete this.metadata[app_id];
+		await set_metadata_for_key(this.serverAPI, app_id, null)
 	};
 
 	public clearCache()
 	{
-		// localforage.clear().then(() => this.saveData());
 		this.metadata = {};
 		void this.saveData();
 	};
@@ -164,39 +167,13 @@ export class MetadataManager implements Manager
 	public async loadData()
 	{
 		this.metadata = await get_metadata(this.serverAPI);
-		this.logger.debug("MetadataData", this.metadata);
-		// for (let key in this.metadata)
-		// {
-		// 	const data = this.metadata[+key];
-		// 	await this.updateCache(key, data);
-		// }
-		await set_metadata(this.serverAPI, this.metadata);
+		await this.saveData();
 	}
 
 	public async saveData()
 	{
-		// this.metadata = {};
-		// await localforage.iterate<MetadataData, void>((value, key) =>
-		// {
-		// 	this.metadata[toNumber(key)] = value;
-		// });
-
 		await set_metadata(this.serverAPI, this.metadata);
 	}
-
-	public async getCache(appId: string): Promise<MetadataData | null>
-	{
-		return await localforage.getItem<MetadataData>(appId);
-	};
-
-	public async needCacheUpdate(lastUpdatedAt: Date, appId: string)
-	{
-		const now = new Date();
-		const durationMs = Math.abs(lastUpdatedAt.getTime() - now.getTime());
-
-		const minutesBetweenDates = durationMs / (24 * 60 * 60 * 1000);
-		return minutesBetweenDates > 31 || (await this.getCache(appId))===null;
-	};
 
 	public normalize(str: string): string
 	{
@@ -212,26 +189,40 @@ export class MetadataManager implements Manager
 		let metadata = await get_metadata_id(this.serverAPI);
 		metadata[app_id] = data_id;
 		await set_metadata_id(this.serverAPI, metadata);
-		await this.removeCache(`${app_id}`);
-		let appData = appDetailsStore.GetAppData(app_id)
+		await this.removeCache(app_id);
+		const data = await this.fetchMetadataAsync(app_id);
+		let appData = appDetailsStore.GetAppData(app_id);
 		if (appData)
 		{
-			const data = await this.fetchMetatdataAsync(app_id)
+			const overview = appStore.GetAppOverviewByAppID(app_id)
+			const desc = data?.description ?? this.t("noDescription");
 			const devs = data?.developers ?? [];
 			const pubs = data?.publishers ?? [];
+			this.logger.debug(desc);
 			this.logger.debug(devs, pubs)
-			appData.associationData = {
-				rgDevelopers: devs.map(value => ({
-					strName: value.name,
-					strURL: value.url
-				})),
-				rgPublishers: pubs.map(value => ({
-					strName: value.name,
-					strURL: value.url
-				})),
-				rgFranchises: []
-			}
-			appDetailsCache.SetCachedDataForApp(app_id, "associations", 1, appData.associationData)
+			runInAction(() => {
+				appData.descriptionsData = {
+					strFullDescription: <Markdown>
+						{`# ${overview.display_name}\n` + desc}
+					</Markdown>,
+					strSnippet: <Markdown>
+						{`# ${overview.display_name}\n` + desc}
+					</Markdown>
+				}
+				appData.associationData = {
+					rgDevelopers: devs.map(value => ({
+						strName: value.name,
+						strURL: value.url
+					})),
+					rgPublishers: pubs.map(value => ({
+						strName: value.name,
+						strURL: value.url
+					})),
+					rgFranchises: []
+				}
+				appDetailsCache.SetCachedDataForApp(app_id, "descriptions", 1, appData.descriptionsData)
+				appDetailsCache.SetCachedDataForApp(app_id, "associations", 1, appData.associationData)
+			});
 		}
 	}
 
@@ -265,9 +256,9 @@ export class MetadataManager implements Manager
 				const results: Game[] = JSON.parse(response.result.body);
 				if (results.length > 0)
 				{
-					const closest_name = closest(this.normalize(display_name), results.map(value => value.name) as string[])
-					const games = results.filter(value => (value.name===closest_name || distance(this.normalize(display_name), value.name as string) < 10) && value.summary!=="") as Game[]
-					this.logger.debug(`Game ${JSON.stringify(games, undefined, "\t")}`)
+					// const closest_name = closest(this.normalize(display_name), results.map(value => value.name) as string[])
+					const games = results.filter(value => (distance(this.normalize(display_name), value.name as string) < 20) && value.summary!=="") as Game[]
+					this.logger.debug("Games: ", games)
 
 					let ret: { [index: number]: MetadataData } = {};
 					for (let game of games)
@@ -338,7 +329,7 @@ export class MetadataManager implements Manager
 								}
 							}
 						}
-						this.logger.debug(`StoreCategories: ${gameCategories}`)
+						this.logger.debug("StoreCategories: ", gameCategories)
 						if (!!game.involved_companies)
 						{
 							game.involved_companies = game.involved_companies as InvolvedCompany[]
@@ -365,6 +356,7 @@ export class MetadataManager implements Manager
 
 							}
 						}
+						await this.getVerifiedDB();
 						const closest_verified = closest(display_name, this.verifiedDB.map(value => value.Game));
 						const compat_category_result = this.verifiedDB.find(value => value.Game===closest_verified)
 						let compat_category: SteamDeckCompatCategory;
@@ -393,18 +385,18 @@ export class MetadataManager implements Manager
 							compat_category: compat_category,
 							store_categories: gameCategories
 						}
-						await this.updateCache(`${app_id}`, data);
 						this.logger.debug(data);
 						ret[game.id] = data;
-
+						await sleep(350)
 					}
 					this.logger.debug(ret);
 					resolve(ret);
-
 				} else resolve(undefined);
 			} else reject(new Error(`HTTP ERROR: ${response.result}`));
 		})
 	}
+
+	private getMetadataForGameThrottled: DebouncedFunc<(app_id: number) => Promise<MetadataData | undefined>> = throttle(this.getMetadataForGame, 300, {leading: true}) ;
 
 	public async getMetadataForGame(app_id: number): Promise<MetadataData | undefined>
 	{
@@ -423,7 +415,7 @@ export class MetadataManager implements Manager
 				},
 				body: `search \"${display_name}\"; fields *, involved_companies.*, involved_companies.company.*, game_modes.*, multiplayer_modes.*, platforms.*;`
 			}));
-			this.logger.debug(response)
+			this.logger.debug("response", response)
 
 			if (response.success)
 			{
@@ -437,9 +429,12 @@ export class MetadataManager implements Manager
 						const closest_name = closest(this.normalize(display_name), results.map(value => value.name) as string[])
 						this.logger.debug(closest_name, results.map(value => value.name))
 						const games1 = results.filter(value => value.name===closest_name) as Game[]
-						this.logger.debug(`Game ${JSON.stringify(games1, undefined, "\t")}`)
+						this.logger.debug("Games: ", games1)
 						games = games1.filter(value => value.summary!=="")
-						await this.setMetadataId(app_id, games.length > 0 ? games[0].id:0)
+						let metadata = await get_metadata_id(this.serverAPI);
+						metadata[app_id] = games.length > 0 ? games[0].id:0;
+						await set_metadata_id(this.serverAPI, metadata);
+						await this.removeCache(app_id);
 					} else if (data_id===0)
 					{
 						games = [];
@@ -516,7 +511,7 @@ export class MetadataManager implements Manager
 								}
 							}
 						}
-						this.logger.debug(`StoreCategories: ${gameCategories}`)
+						this.logger.debug("StoreCategories: ", gameCategories)
 						if (!!game.involved_companies)
 						{
 							game.involved_companies = game.involved_companies as InvolvedCompany[]
@@ -572,7 +567,6 @@ export class MetadataManager implements Manager
 							compat_category: compat_category,
 							store_categories: gameCategories
 						}
-						await this.updateCache(`${app_id}`, data);
 						this.logger.debug(data);
 						resolve(data);
 					}
@@ -587,7 +581,7 @@ export class MetadataManager implements Manager
 		if (!this.metadata[app_id])
 		{
 			let wait: boolean = true;
-			this.getMetadataForGame(app_id).then(async (data) =>
+			this.getMetadataForGameThrottled(app_id)?.then(async (data) =>
 			{
 				if (!!data)
 				{
@@ -612,11 +606,11 @@ export class MetadataManager implements Manager
 		}
 	}
 
-	public async fetchMetatdataAsync(app_id: number): Promise<MetadataData | undefined>
+	public async fetchMetadataAsync(app_id: number): Promise<MetadataData | undefined>
 	{
 		if (!this.metadata[app_id])
 		{
-			let data = await this.getMetadataForGame(app_id)
+			let data = await this.getMetadataForGameThrottled(app_id)
 			if (!!data)
 			{
 				this.logger.debug(`Caching metadata for ${app_id}: `, data);
@@ -624,6 +618,7 @@ export class MetadataManager implements Manager
 				appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
 				// appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = SteamDeckCompatCategory.VERIFIED
 				this.metadata[app_id].store_categories?.forEach(category => appStore.GetAppOverviewByAppID(app_id).m_setStoreCategories.add(category))
+				await set_metadata_for_key(this.serverAPI, app_id, this.metadata[app_id]);
 			}
 			return this.metadata[app_id];
 		} else
@@ -654,32 +649,30 @@ export class MetadataManager implements Manager
 
 	async refresh_metadata_for_apps(app_ids: number[]): Promise<void>
 	{
-		this.globalLoading = true;
+		await this.loadData();
 		this.total = app_ids.length;
 		this.processed = 0;
 		await Promise.map(app_ids, (async (app_id) =>
 		{
 			this.logger.debug(`Metadata at ${app_id}`, this.metadata);
 			await this.refresh_metadata_for_app(app_id);
-			await sleep(250)
 		}), {
 			concurrency: 3
 		});
 		this.globalLoading = false;
 		this.processed = 0;
 		this.total = 0;
-		await this.saveData();
 	}
 
 	private async refresh_metadata_for_app(app_id: number): Promise<void>
 	{
 		const overview = appStore.GetAppOverviewByAppID(app_id);
-		const metadata = await this.fetchMetatdataAsync(app_id)
+		const metadata = await this.fetchMetadataAsync(app_id)
 		this.logger.debug(`Refreshed metadata for ${app_id}: `, metadata);
 		if (overview && metadata)
 		{
 			this.currentGame = format(this.t("currentGame"), overview.display_name, !!metadata ? format(this.t("foundMetadata"), truncate(metadata.description, {
-				'length': 128,
+				'length': 64,
 				'omission': "..."
 			}), {
 				0: this.t("unknown"),
@@ -697,26 +690,31 @@ export class MetadataManager implements Manager
 
 	async refresh(): Promise<void>
 	{
-		await this.refresh_metadata_for_apps((await getAllNonSteamAppOverviews()).sort((a, b) =>
+		if (!this.globalLoading)
 		{
+			this.globalLoading = true;
+			this.currentGame = this.t("fetching")
+			await this.refresh_metadata_for_apps((await getAllNonSteamAppOverviews()).sort((a, b) =>
+			{
 
-			if (a.display_name < b.display_name)
-			{
-				return -1;
-			}
-			if (a.display_name > b.display_name)
-			{
-				return 1;
-			}
-			return 0;
-		}).map(overview => overview.appid))
+				if (a.display_name < b.display_name)
+				{
+					return -1;
+				}
+				if (a.display_name > b.display_name)
+				{
+					return 1;
+				}
+				return 0;
+			}).map(overview => overview.appid))
+		}
 	}
 
 	async init(): Promise<void>
 	{
 		await this.getVerifiedDB();
 		await this.loadData();
-		await this.saveData();
+		this.logger.debug("metadata", this.metadata);
 		// const fetchMetadataDebounced = debounce((app_id: number) => this.fetchMetadata(app_id), 500, {leading: true});
 		await this.refresh()
 	}

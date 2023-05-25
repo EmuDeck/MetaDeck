@@ -16,7 +16,7 @@ logger.setLevel(logging.DEBUG)  # can be changed to logging.DEBUG for debugging 
 class Plugin:
 	language: str = None
 	metadata_id: Dict[int, int] = None
-	metadata: Dict[int, Dict[str, any]] = None
+	metadata: Dict[str, Dict[str, any]] = None
 	settings: SettingsManager
 
 	async def _main(self) -> None:
@@ -41,16 +41,21 @@ class Plugin:
 		"""
 		while Plugin.metadata is None:
 			await asyncio.sleep(0.1)
-		logger.debug(f"Got metadata {Plugin.metadata}")
-		return Plugin.metadata[key]
+		assert Plugin.metadata is not None
+		logger.debug(f"Got metadata {Plugin.metadata[str(key)]}")
+		return Plugin.metadata[str(key)]
 
-	async def set_metadata_for_key(self, key: int, metadata: Dict[str, any]):
-		Plugin.metadata[key] = metadata
+	async def set_metadata_for_key(self, key: int, metadata: Dict[str, any] | None):
+		if metadata is None:
+			del Plugin.metadata[str(key)]
+		else:
+			Plugin.metadata[str(key)] = metadata
 		await Plugin.set_setting(self, "metadata", Plugin.metadata)
 
 	async def get_metadata_keys(self) -> List[int] | None:
 		while Plugin.metadata is None:
 			await asyncio.sleep(0.1)
+		assert Plugin.metadata is not None
 		logger.debug(f"Got metadata keys {list(map(int, Plugin.metadata.keys()))}")
 		return list(map(int, Plugin.metadata.keys()))
 

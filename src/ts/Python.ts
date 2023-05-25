@@ -1,6 +1,8 @@
 import {ServerAPI} from "decky-frontend-lib";
 import {HTTPResult, MetadataData, MetadataDictionary, MetadataIdDictionary} from "./Interfaces";
-import {toNumber} from "lodash-es";
+import Logger from "./logger";
+
+const logger = new Logger("API");
 
 export async function get_metadata(serverAPI: ServerAPI)
 {
@@ -10,21 +12,11 @@ export async function get_metadata(serverAPI: ServerAPI)
 		let result = await serverAPI.callPluginMethod<{}, number[]>("get_metadata_keys", {});
 		if (result.success)
 		{
+			logger.debug("metadata keys: ", result.result);
 			let metadata: MetadataDictionary = {};
 			for (const key of result.result)
 			{
-				let result = await serverAPI.callPluginMethod<{
-					key: number
-				}, MetadataData>("get_metadata_for_key", {
-					key: key,
-				});
-				if (result.success)
-				{
-					metadata[key] = result.result;
-				} else
-				{
-					reject(new Error(result.result));
-				}
+				metadata[key] = await get_metadata_for_key(serverAPI, key);
 			}
 			resolve(metadata);
 		}
@@ -34,23 +26,45 @@ export async function get_metadata(serverAPI: ServerAPI)
 
 export async function set_metadata(serverAPI: ServerAPI, metadata: MetadataDictionary)
 {
+	for (const [key, value] of Object.entries(metadata))
+	{
+		await set_metadata_for_key(serverAPI, +key, value);
+	}
+}
+
+export async function set_metadata_for_key(serverAPI: ServerAPI, app_id: number, metadata: MetadataData | null)
+{
 	return new Promise<void>(async (resolve, reject) =>
 	{
-		for (const [key, value] of Object.entries(metadata))
+		let result = await serverAPI.callPluginMethod<{
+			key: number,
+			metadata: MetadataData | null,
+		}, void>("set_metadata_for_key", {
+			key: app_id,
+			metadata
+		});
+		if (!result.success)
 		{
-			let result = await serverAPI.callPluginMethod<{
-				key: number,
-				metadata: MetadataData,
-			}, void>("set_metadata_for_key", {
-				key: toNumber(key),
-				metadata: value
-			});
-			if (!result.success)
-			{
-				reject(new Error(result.result));
-			}
+			reject(new Error(result.result));
 		}
-		resolve();
+		else resolve();
+	});
+}
+
+export async function get_metadata_for_key(serverAPI: ServerAPI, app_id: number)
+{
+	return new Promise<MetadataData>(async (resolve, reject) =>
+	{
+		let result = await serverAPI.callPluginMethod<{
+			key: number
+		}, MetadataData>("get_metadata_for_key", {
+			key: app_id
+		});
+		if (!result.success)
+		{
+			reject(new Error(result.result));
+		}
+		else resolve(result.result);
 	});
 }
 
