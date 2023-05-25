@@ -57,7 +57,8 @@
 		"mobx": "5",
 		"react-icons": "^4.4.0",
 		"react-markdown": "^8.0.6",
-		"remark-gfm": "^3.0.1"
+		"remark-gfm": "^3.0.1",
+		"throttled-queue": "^2.1.4"
 	},
 	"pnpm": {
 		"peerDependencyRules": {

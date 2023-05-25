@@ -1,4 +1,4 @@
-import {ServerAPI, sleep} from "decky-frontend-lib";
+import {ServerAPI} from "decky-frontend-lib";
 import * as localforage from "localforage";
 import {closest, distance} from "fastest-levenshtein";
 import {
@@ -14,7 +14,8 @@ import {
 } from "./Interfaces";
 
 import {Company, Game, GameMode, InvolvedCompany, MultiplayerMode, Platform} from "igdb-api-types"
-import {DebouncedFunc, throttle, truncate} from "lodash-es";
+import {truncate} from "lodash-es";
+import throttledQueue from 'throttled-queue';
 import {
 	authenticate_igdb,
 	get_metadata,
@@ -200,7 +201,8 @@ export class MetadataManager implements Manager
 			const pubs = data?.publishers ?? [];
 			this.logger.debug(desc);
 			this.logger.debug(devs, pubs)
-			runInAction(() => {
+			runInAction(() =>
+			{
 				appData.descriptionsData = {
 					strFullDescription: <Markdown>
 						{`# ${overview.display_name}\n` + desc}
@@ -263,131 +265,133 @@ export class MetadataManager implements Manager
 					let ret: { [index: number]: MetadataData } = {};
 					for (let game of games)
 					{
-						let gameDevs: Developer[] = [];
-						let gamePubs: Publisher[] = [];
-						let gameCategories: StoreCategory[] = [];
-						if (!!game.game_modes)
+						await this.throttle(async () =>
 						{
-							game.game_modes = game.game_modes as GameMode[];
-							for (const game_mode of game.game_modes)
+							let gameDevs: Developer[] = [];
+							let gamePubs: Publisher[] = [];
+							let gameCategories: StoreCategory[] = [];
+							if (!!game.game_modes)
 							{
-								if (!!game_mode.slug)
+								game.game_modes = game.game_modes as GameMode[];
+								for (const game_mode of game.game_modes)
 								{
-									switch (game_mode.slug)
+									if (!!game_mode.slug)
 									{
-										case "single-player":
-											gameCategories.push(StoreCategory.SinglePlayer)
-											break;
+										switch (game_mode.slug)
+										{
+											case "single-player":
+												gameCategories.push(StoreCategory.SinglePlayer)
+												break;
 
-										case "multiplayer":
-											gameCategories.push(StoreCategory.MultiPlayer)
-											break;
-									}
-									this.logger.debug(`Game mode: ${game_mode.slug}`)
-								}
-							}
-						}
-						if (!!game.multiplayer_modes)
-						{
-							game.multiplayer_modes = game.multiplayer_modes as MultiplayerMode[];
-							for (const multiplayer_mode of game.multiplayer_modes)
-							{
-								if (!!multiplayer_mode.onlinecoop)
-								{
-									gameCategories.push(StoreCategory.OnlineCoOp)
-								}
-								if (!!multiplayer_mode.offlinecoop)
-								{
-									gameCategories.push(StoreCategory.LocalCoOp)
-								}
-								if (!!multiplayer_mode.splitscreen || !!multiplayer_mode.splitscreenonline)
-								{
-									gameCategories.push(StoreCategory.SplitScreen)
-								}
-								if (!!multiplayer_mode.onlinecoop || !!multiplayer_mode.splitscreenonline)
-								{
-									gameCategories.push(StoreCategory.OnlineMultiPlayer)
-								}
-								if (!!multiplayer_mode.offlinecoop || !!multiplayer_mode.lancoop || !!multiplayer_mode.splitscreen)
-								{
-									gameCategories.push(StoreCategory.LocalMultiPlayer)
-								}
-								this.logger.debug(`Multiplayer mode: ${multiplayer_mode.id}`)
-							}
-						}
-						if (!!game.platforms)
-						{
-							game.platforms = game.platforms as Platform[];
-							for (const platform of game.platforms)
-							{
-								if (!!platform.category)
-								{
-									if (platform.category===PlatformCategory.console || platform.category===PlatformCategory.portable_console || platform.category===PlatformCategory.arcade && !gameCategories.includes(StoreCategory.FullController) && !gameCategories.includes(StoreCategory.PartialController))
-									{
-										gameCategories.push(StoreCategory.FullController)
+											case "multiplayer":
+												gameCategories.push(StoreCategory.MultiPlayer)
+												break;
+										}
+										this.logger.debug(`Game mode: ${game_mode.slug}`)
 									}
 								}
 							}
-						}
-						this.logger.debug("StoreCategories: ", gameCategories)
-						if (!!game.involved_companies)
-						{
-							game.involved_companies = game.involved_companies as InvolvedCompany[]
-							for (const involved_company of game.involved_companies)
+							if (!!game.multiplayer_modes)
 							{
-								if (!!involved_company.company)
+								game.multiplayer_modes = game.multiplayer_modes as MultiplayerMode[];
+								for (const multiplayer_mode of game.multiplayer_modes)
 								{
-									const company_results = involved_company.company as Company;
-									if (involved_company.developer)
+									if (!!multiplayer_mode.onlinecoop)
 									{
-										gameDevs.push({
-											name: company_results.name as string,
-											url: company_results.url as string
-										});
+										gameCategories.push(StoreCategory.OnlineCoOp)
 									}
-									if (involved_company.publisher)
+									if (!!multiplayer_mode.offlinecoop)
 									{
-										gamePubs.push({
-											name: company_results.name as string,
-											url: company_results.url as string
-										});
+										gameCategories.push(StoreCategory.LocalCoOp)
+									}
+									if (!!multiplayer_mode.splitscreen || !!multiplayer_mode.splitscreenonline)
+									{
+										gameCategories.push(StoreCategory.SplitScreen)
+									}
+									if (!!multiplayer_mode.onlinecoop || !!multiplayer_mode.splitscreenonline)
+									{
+										gameCategories.push(StoreCategory.OnlineMultiPlayer)
+									}
+									if (!!multiplayer_mode.offlinecoop || !!multiplayer_mode.lancoop || !!multiplayer_mode.splitscreen)
+									{
+										gameCategories.push(StoreCategory.LocalMultiPlayer)
+									}
+									this.logger.debug(`Multiplayer mode: ${multiplayer_mode.id}`)
+								}
+							}
+							if (!!game.platforms)
+							{
+								game.platforms = game.platforms as Platform[];
+								for (const platform of game.platforms)
+								{
+									if (!!platform.category)
+									{
+										if (platform.category===PlatformCategory.console || platform.category===PlatformCategory.portable_console || platform.category===PlatformCategory.arcade && !gameCategories.includes(StoreCategory.FullController) && !gameCategories.includes(StoreCategory.PartialController))
+										{
+											gameCategories.push(StoreCategory.FullController)
+										}
 									}
 								}
+							}
+							this.logger.debug("StoreCategories: ", gameCategories)
+							if (!!game.involved_companies)
+							{
+								game.involved_companies = game.involved_companies as InvolvedCompany[]
+								for (const involved_company of game.involved_companies)
+								{
+									if (!!involved_company.company)
+									{
+										const company_results = involved_company.company as Company;
+										if (involved_company.developer)
+										{
+											gameDevs.push({
+												name: company_results.name as string,
+												url: company_results.url as string
+											});
+										}
+										if (involved_company.publisher)
+										{
+											gamePubs.push({
+												name: company_results.name as string,
+												url: company_results.url as string
+											});
+										}
+									}
 
+								}
 							}
-						}
-						await this.getVerifiedDB();
-						const closest_verified = closest(display_name, this.verifiedDB.map(value => value.Game));
-						const compat_category_result = this.verifiedDB.find(value => value.Game===closest_verified)
-						let compat_category: SteamDeckCompatCategory;
-						if (compat_category_result)
-						{
-							if (compat_category_result?.Boots===YesNo.YES && compat_category_result?.Playable===YesNo.YES)
+							await this.getVerifiedDB();
+							const closest_verified = closest(display_name, this.verifiedDB.map(value => value.Game));
+							const compat_category_result = this.verifiedDB.find(value => value.Game===closest_verified)
+							let compat_category: SteamDeckCompatCategory;
+							if (compat_category_result)
 							{
-								compat_category = SteamDeckCompatCategory.VERIFIED;
-							} else if (compat_category_result?.Boots===YesNo.YES && compat_category_result?.Playable===YesNo.NO)
-							{
-								compat_category = SteamDeckCompatCategory.PLAYABLE
-							} else
-							{
-								compat_category = SteamDeckCompatCategory.UNSUPPORTED
-							}
-						} else compat_category = SteamDeckCompatCategory.UNKNOWN;
+								if (compat_category_result?.Boots===YesNo.YES && compat_category_result?.Playable===YesNo.YES)
+								{
+									compat_category = SteamDeckCompatCategory.VERIFIED;
+								} else if (compat_category_result?.Boots===YesNo.YES && compat_category_result?.Playable===YesNo.NO)
+								{
+									compat_category = SteamDeckCompatCategory.PLAYABLE
+								} else
+								{
+									compat_category = SteamDeckCompatCategory.UNSUPPORTED
+								}
+							} else compat_category = SteamDeckCompatCategory.UNKNOWN;
 
-						let data: MetadataData = {
-							title: game.name ?? "No Title",
-							id: game.id,
-							description: game.summary ?? "No Description",
-							developers: gameDevs,
-							publishers: gamePubs,
-							last_updated_at: new Date(),
-							release_date: game.first_release_date,
-							compat_category: compat_category,
-							store_categories: gameCategories
-						}
-						this.logger.debug(data);
-						ret[game.id] = data;
-						await sleep(350)
+							let data: MetadataData = {
+								title: game.name ?? "No Title",
+								id: game.id,
+								description: game.summary ?? "No Description",
+								developers: gameDevs,
+								publishers: gamePubs,
+								last_updated_at: new Date(),
+								release_date: game.first_release_date,
+								compat_category: compat_category,
+								store_categories: gameCategories
+							}
+							this.logger.debug(data);
+							ret[game.id] = data;
+						})
 					}
 					this.logger.debug(ret);
 					resolve(ret);
@@ -396,7 +400,7 @@ export class MetadataManager implements Manager
 		})
 	}
 
-	private getMetadataForGameThrottled: DebouncedFunc<(app_id: number) => Promise<MetadataData | undefined>> = throttle(this.getMetadataForGame, 300, {leading: true}) ;
+	private throttle = throttledQueue(4, 1000, true);
 
 	public async getMetadataForGame(app_id: number): Promise<MetadataData | undefined>
 	{
@@ -581,7 +585,7 @@ export class MetadataManager implements Manager
 		if (!this.metadata[app_id])
 		{
 			let wait: boolean = true;
-			this.getMetadataForGameThrottled(app_id)?.then(async (data) =>
+			this.throttle(() => this.getMetadataForGame(app_id))?.then(async (data) =>
 			{
 				if (!!data)
 				{
@@ -610,7 +614,7 @@ export class MetadataManager implements Manager
 	{
 		if (!this.metadata[app_id])
 		{
-			let data = await this.getMetadataForGameThrottled(app_id)
+			let data = await this.throttle(() => this.getMetadataForGame(app_id))
 			if (!!data)
 			{
 				this.logger.debug(`Caching metadata for ${app_id}: `, data);
