@@ -1,4 +1,15 @@
 {
 	"changeMetadata": "Сменить метаданные",
-	"noDescription": "Описание отсутствует"
+	"noDescription": "Описание отсутствует",
+	"save": "Сохранить",
+	"refresh": "Обновить",
+	"loading": "Загрузка",
+	"fetching": "Fetching",
+	"noMetadata": "Метаданные не найдены",
+	"foundMetadata": "Description: %%, Verified status: %%",
+	"currentGame": "%%: %%",
+	"verified": "Verified",
+	"playable": "Playable",
+	"unsupported": "Unsupported",
+	"unknown": "Unknown"
 }
