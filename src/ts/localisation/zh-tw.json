@@ -6,7 +6,7 @@
 	"loading": "載入中",
 	"fetching": "讀取中",
 	"noMetadata": "未發現元資料",
-	"foundMetadata": "Description: %%, Verified status: %%",
+	"foundMetadata": "描述：%%，驗證狀態：%%",
 	"currentGame": "%%：%%",
 	"verified": "已驗證",
 	"playable": "可播放",
