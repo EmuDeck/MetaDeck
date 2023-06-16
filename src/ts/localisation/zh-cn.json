@@ -1,15 +1,15 @@
 {
 	"changeMetadata": "更改元数据",
 	"noDescription": "未找到简介",
-	"save": "Save",
-	"refresh": "Refresh",
-	"loading": "Loading",
-	"fetching": "Fetching",
+	"save": "保存",
+	"refresh": "刷新",
+	"loading": "加载中",
+	"fetching": "获取中",
 	"noMetadata": "No Metadata Found",
 	"foundMetadata": "Description: %%, Verified status: %%",
 	"currentGame": "%%: %%",
-	"verified": "Verified",
+	"verified": "已验证",
 	"playable": "Playable",
-	"unsupported": "Unsupported",
-	"unknown": "Unknown"
+	"unsupported": "不支持",
+	"unknown": "未知"
 }
