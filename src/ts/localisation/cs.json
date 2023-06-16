@@ -4,12 +4,12 @@
 	"save": "Uložit",
 	"refresh": "Obnovit",
 	"loading": "Načítání",
-	"fetching": "Fetching",
-	"noMetadata": "No Metadata Found",
-	"foundMetadata": "Description: %%, Verified status: %%",
+	"fetching": "Nahrávám",
+	"noMetadata": "Nebyla nalezena žádná metadata",
+	"foundMetadata": "Popis: %%, Ověřený stav: %%",
 	"currentGame": "%%: %%",
-	"verified": "Verified",
-	"playable": "Playable",
-	"unsupported": "Unsupported",
-	"unknown": "Unknown"
+	"verified": "Ověřeno",
+	"playable": "Hratelné",
+	"unsupported": "Nepodporováno",
+	"unknown": "Neznámý"
 }
