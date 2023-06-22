@@ -2,14 +2,14 @@
 	"changeMetadata": "Ändra Metadata",
 	"noDescription": "Ingen beskrivning hittades",
 	"save": "Spara",
-	"refresh": "Refresh",
-	"loading": "Loading",
-	"fetching": "Fetching",
-	"noMetadata": "No Metadata Found",
-	"foundMetadata": "Description: %%, Verified status: %%",
+	"refresh": "Uppdatera",
+	"loading": "Laddar",
+	"fetching": "Hämtar",
+	"noMetadata": "Ingen Metadata Hittades",
+	"foundMetadata": "Beskrivning: %%, Verifierad status: %%",
 	"currentGame": "%%: %%",
-	"verified": "Verified",
-	"playable": "Playable",
-	"unsupported": "Unsupported",
-	"unknown": "Unknown"
+	"verified": "Verifierad",
+	"playable": "Spelbart",
+	"unsupported": "Stöds inte",
+	"unknown": "Okänd"
 }
