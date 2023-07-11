@@ -1,15 +1,15 @@
 {
 	"changeMetadata": "Metadaten ändern",
 	"noDescription": "Keine Beschreibung gefunden",
-	"save": "Save",
-	"refresh": "Refresh",
-	"loading": "Loading",
-	"fetching": "Fetching",
-	"noMetadata": "No Metadata Found",
-	"foundMetadata": "Description: %%, Verified status: %%",
+	"save": "Speichern",
+	"refresh": "Aktualisieren",
+	"loading": "Lädt",
+	"fetching": "Wird abgerufen",
+	"noMetadata": "Keine Metadaten gefunden",
+	"foundMetadata": "Beschreibung: %%, Bestätigung: %%",
 	"currentGame": "%%: %%",
-	"verified": "Verified",
-	"playable": "Playable",
-	"unsupported": "Unsupported",
-	"unknown": "Unknown"
+	"verified": "Bestätigt",
+	"playable": "Spielbar",
+	"unsupported": "Nicht unterstützt",
+	"unknown": "Unbekannt"
 }
