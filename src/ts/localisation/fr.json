@@ -1,15 +1,15 @@
 {
 	"changeMetadata": "Modification des métadonnées",
 	"noDescription": "Description introuvable",
-	"save": "Save",
-	"refresh": "Refresh",
-	"loading": "Loading",
-	"fetching": "Fetching",
-	"noMetadata": "No Metadata Found",
-	"foundMetadata": "Description: %%, Verified status: %%",
+	"save": "Enregistrer",
+	"refresh": "Actualiser",
+	"loading": "Chargement",
+	"fetching": "Téléchargement",
+	"noMetadata": "Aucunes métadonnées trouvées",
+	"foundMetadata": "Description: %%, Statut de la vérification: %%",
 	"currentGame": "%%: %%",
-	"verified": "Verified",
-	"playable": "Playable",
-	"unsupported": "Unsupported",
-	"unknown": "Unknown"
+	"verified": "Vérifié",
+	"playable": "Jouable",
+	"unsupported": "Non supporté",
+	"unknown": "Inconnu"
 }
