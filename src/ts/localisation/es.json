@@ -6,10 +6,10 @@
 	"loading": "Cargando",
 	"fetching": "Obteniendo",
 	"noMetadata": "No se encontraron metadatos",
-	"foundMetadata": "Description: %%, Verified status: %%",
+	"foundMetadata": "Descripción: %%, Estado de verificación: %%",
 	"currentGame": "%%: %%",
-	"verified": "Verified",
-	"playable": "Playable",
-	"unsupported": "Unsupported",
-	"unknown": "Unknown"
+	"verified": "Verificado",
+	"playable": "Jugable",
+	"unsupported": "No soportado",
+	"unknown": "Desconocido"
 }
