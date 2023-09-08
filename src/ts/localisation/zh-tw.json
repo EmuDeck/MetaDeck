@@ -1,7 +1,9 @@
 {
+	"title": "MetaDeck",
 	"changeMetadata": "修改元資料",
 	"noDescription": "未找到描述",
 	"save": "儲存",
+	"cacheCleared": "Cache Cleared",
 	"refresh": "重新整理",
 	"loading": "載入中",
 	"fetching": "讀取中",
