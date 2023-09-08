@@ -1,7 +1,9 @@
 {
+	"title": "MetaDeck",
 	"changeMetadata": "Modification des métadonnées",
 	"noDescription": "Description introuvable",
 	"save": "Enregistrer",
+	"cacheCleared": "Cache Cleared",
 	"refresh": "Actualiser",
 	"loading": "Chargement",
 	"fetching": "Téléchargement",
