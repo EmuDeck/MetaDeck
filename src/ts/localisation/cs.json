@@ -1,7 +1,9 @@
 {
+	"title": "MetaDeck",
 	"changeMetadata": "Změnit metadata",
 	"noDescription": "Popis nenalezen",
 	"save": "Uložit",
+	"cacheCleared": "Cache Cleared",
 	"refresh": "Obnovit",
 	"loading": "Načítání",
 	"fetching": "Nahrávám",
