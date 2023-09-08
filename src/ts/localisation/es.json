@@ -1,7 +1,9 @@
 {
+	"title": "MetaDeck",
 	"changeMetadata": "Cambiar Metadatos",
 	"noDescription": "No se encontró una descripción",
 	"save": "Guardar",
+	"cacheCleared": "Cache Cleared",
 	"refresh": "Recargar",
 	"loading": "Cargando",
 	"fetching": "Obteniendo",
