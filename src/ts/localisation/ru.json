@@ -1,7 +1,9 @@
 {
+	"title": "MetaDeck",
 	"changeMetadata": "Сменить метаданные",
 	"noDescription": "Описание отсутствует",
 	"save": "Сохранить",
+	"cacheCleared": "Cache Cleared",
 	"refresh": "Обновить",
 	"loading": "Загрузка",
 	"fetching": "Получение",
