@@ -1,7 +1,9 @@
 {
+	"title": "MetaDeck",
 	"changeMetadata": "Ändra Metadata",
 	"noDescription": "Ingen beskrivning hittades",
 	"save": "Spara",
+	"cacheCleared": "Cache Cleared",
 	"refresh": "Uppdatera",
 	"loading": "Laddar",
 	"fetching": "Hämtar",
