@@ -1,5 +1,5 @@
 export const log = (name: string) => {
-	return console.log.bind(
+	return console.info.bind(
 			window.console,
 			`%c MetaDeck %c ${name} %c`,
 			'background: #16a085; color: black;',
@@ -9,7 +9,7 @@ export const log = (name: string) => {
 };
 
 export const debug = (name: string) => {
-	if (process.env.NODE_ENV === 'development')
+	if (process.env.RELEASE_TYPE === 'development')
 		return console.debug.bind(window.console,
 				`%c MetaDeck %c ${name} %c`,
 				'background: #16a085; color: black;',
@@ -27,20 +27,35 @@ export const error = (name: string) => {
 	);
 };
 
+export const warn = (name: string) => {
+	return console.warn.bind(window.console,
+               `%c MetaDeck %c ${name} %c`,
+               'background: #16a085; color: black;',
+               'background: #c4a000;',
+               'background: transparent;'
+	);
+}
+
 class Logger
 {
-	get log(): any
+	get log(): (...args: any[]) => void
 	{
 		return this._log;
 	}
-	get debug(): any
+	get debug(): (...args: any[]) => void
 	{
 		return this._debug;
 	}
-	get error(): any
+	get error(): (...args: any[]) => void
 	{
 		return this._error;
 	}
+
+	get warn(): (...args: any[]) => void
+	{
+		return this._warn;
+	}
+
 	constructor(private readonly name: string)
 	{
 		this.name = name;
@@ -51,6 +66,8 @@ class Logger
 	private _debug = debug.bind(this)(this.name).bind(this);
 
 	private _error = error.bind(this)(this.name).bind(this);
+
+	private _warn = warn.bind(this)(this.name).bind(this);
 }
 
 export default Logger;

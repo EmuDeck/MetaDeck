@@ -45,9 +45,15 @@ yalc.lock
 
 # Ignore output folder
 
-main.py
+*.py
 
 backend/out
+backend/lib
+backend/.cache/.gradle
+backend/.cache/.konan
+backend/.gradle
 build
+out
+lib/frontend/*
 
 deck.json

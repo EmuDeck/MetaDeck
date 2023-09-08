@@ -16,7 +16,7 @@ import {Title} from "./Title";
 import {MetaDeckComponent} from "./metaDeckComponent";
 import Logger from "./logger";
 import contextMenuPatch, {getMenu} from "./contextMenuPatch";
-import {getTranslateFunc} from "./useTranslations";
+import {t} from "./useTranslations";
 import {AppDetailsStore, AppStore, CollectionStore, SteamAppOverview} from "./SteamTypes";
 import {EventBus, MountManager} from "./System";
 import {ReactNode} from "react";
@@ -25,6 +25,8 @@ import {MetaDeckState, MetaDeckStateContextProvider} from "./hooks/metadataConte
 import {Markdown} from "./markdown";
 import {runInAction} from "mobx";
 import {ChangeMetadataComponent} from "./changeMetadataComponent";
+import {Events, RegisterEvents} from "./events";
+import {MetaDeckClient} from "../../lib/frontend/MetaDeck-frontend";
 
 interface Plugin
 {
@@ -48,7 +50,25 @@ declare global
 	let appStore: AppStore;
 	let appDetailsStore: AppDetailsStore;
 
-	let appDetailsCache: any
+	let appDetailsCache: {
+		SetCachedDataForApp(app_id: number, descriptions: string, number: number, descriptionsData: {
+			strFullDescription: ReactNode;
+			strSnippet: ReactNode
+		} | {
+			rgDevelopers: {
+				strName: string,
+				strURL: string
+			}[],
+			rgPublishers: {
+				strName: string,
+				strURL: string
+			}[]
+			rgFranchises: {
+				strName: string,
+				strURL: string
+			}[]
+		}): void;
+	}
 
 	let collectionStore: CollectionStore;
 
@@ -92,7 +112,8 @@ declare global
 export default definePlugin((serverAPI: ServerAPI) =>
 {
 	const logger = new Logger("Index");
-	const state = new MetaDeckState(serverAPI)
+	const backendAPI = new MetaDeckClient();
+	const state = new MetaDeckState(serverAPI, backendAPI)
 	const metadataManager = new MetadataManager(state);
 	const eventBus = new EventBus();
 	const mountManager = new MountManager(eventBus, logger, serverAPI);
@@ -163,7 +184,6 @@ export default definePlugin((serverAPI: ServerAPI) =>
 							// if (appData && !appData?.descriptionsData)
 							if (appData)
 							{
-								const t = getTranslateFunc()
 								const data = metadataManager.fetchMetadata(args[0])
 								const desc = data?.description ?? t("noDescription");
 								logger.debug(desc);
@@ -469,6 +489,12 @@ export default definePlugin((serverAPI: ServerAPI) =>
 	mountManager.addMount({
 		mount: async function (): Promise<void>
 		{
+			RegisterEvents()
+			Events.AppOverviewChange.attach((appId) => {
+				logger.log("AppOverviewChange", appId)
+				if (metadataManager.isReady(appId))
+                    metadataManager.fetchMetadata(appId)
+			})
 			if (await checkOnlineStatus())
 			{
 				await metadataManager.init();

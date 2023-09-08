@@ -1,20 +1,26 @@
 import {ServerAPI} from "decky-frontend-lib";
 import {createContext, FC, ReactNode, useContext, useEffect, useState} from "react";
 import {Promise} from "bluebird";
-import {getTranslateFunc} from "../useTranslations";
 import {getAllNonSteamAppOverviews, Manager, MetadataManager} from "../MetadataManager";
+import {Settings} from "../settings";
+import {t} from "../useTranslations";
+import {MetaDeckClient} from "../../../lib/frontend/MetaDeck-frontend";
 
 interface LoadingData
 {
 	get percentage(): number
-	get globalLoading(): boolean,
-	set globalLoading(value: boolean),
-	get currentGame(): string,
-	set currentGame(value: string),
-	get processed(): number,
-	set processed(value: number),
-	get total(): number,
+	get globalLoading(): boolean
+	set globalLoading(value: boolean)
+	get game(): string
+	set game(value: string)
+	get description(): string
+	set description(value: string)
+	get processed(): number
+	set processed(value: number)
+	get total(): number
 	set total(value: number)
+	get fetching(): boolean
+	set fetching(value: boolean)
 }
 
 interface Managers
@@ -28,6 +34,8 @@ interface MetaDeckStateContext
 	managers: Managers,
 	apps: Promise<number[]>,
 	serverAPI: ServerAPI,
+	backendAPI: MetaDeckClient,
+	settings: Settings,
 	refresh(): Promise<void>,
 }
 
@@ -36,7 +44,6 @@ export class MetaDeckState
 {
 	private _loadingData: LoadingData = new class implements LoadingData
 	{
-		private t = getTranslateFunc()
 		private state: MetaDeckState;
 
 		constructor(outer: MetaDeckState)
@@ -86,24 +93,52 @@ export class MetaDeckState
 			this.state.notifyUpdate();
 		}
 
-		private _currentGame = this.t("fetching");
-		get currentGame(): string
+		private _game = t("fetching");
+		get game(): string
 		{
-			return this._currentGame;
+			return this._game;
 		}
 
-		set currentGame(value: string)
+		set game(value: string)
 		{
-			this._currentGame = value;
+			this._game = value;
+			this.state.notifyUpdate();
+		}
+
+		private _description = "";
+		get description(): string
+		{
+			return this._description;
+		}
+
+		set description(value: string)
+		{
+			this._description = value;
+			this.state.notifyUpdate();
+		}
+
+		private _fetching =  true;
+		get fetching(): boolean
+		{
+			return this._fetching;
+		}
+
+		set fetching(value: boolean)
+		{
+			this._fetching = value;
 			this.state.notifyUpdate();
 		}
 	}(this);
 
 	private readonly _serverAPI;
+	private readonly _settings;
+	private readonly _backendAPI;
 
-	constructor(serverAPI: ServerAPI)
+	constructor(serverAPI: ServerAPI, backendAPI: MetaDeckClient)
 	{
 		this._serverAPI = serverAPI;
+		this._backendAPI = backendAPI;
+		this._settings = new Settings(backendAPI, this);
 	}
 
 	private readonly _managers: Managers = {
@@ -119,6 +154,8 @@ export class MetaDeckState
 			managers: this.managers,
 			apps: this.apps,
 			serverAPI: this.serverAPI,
+			backendAPI: this.backendAPI,
+			settings: this.settings,
 			refresh: () => this.refresh(),
 		};
 	}
@@ -152,6 +189,15 @@ export class MetaDeckState
 		return this._serverAPI;
 	}
 
+	get backendAPI(): MetaDeckClient
+	{
+		return this._backendAPI;
+	}
+
+	get settings(): Settings
+	{
+		return this._settings;
+	}
 	async init(): Promise<void>
 	{
 		Promise.map(Object.values(this._managers), (async (manager: Manager) => {

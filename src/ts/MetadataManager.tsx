@@ -4,8 +4,10 @@ import {closest, distance} from "fastest-levenshtein";
 import {
 	Developer,
 	HTTPResult,
+	MetadataCustomDictionary,
 	MetadataData,
 	MetadataDictionary,
+	MetadataIdDictionary,
 	Publisher,
 	SteamDeckCompatCategory,
 	StoreCategory,
@@ -17,18 +19,13 @@ import {Company, Game, GameMode, InvolvedCompany, MultiplayerMode, Platform} fro
 import {truncate} from "lodash-es";
 import throttledQueue from 'throttled-queue';
 import {
-	authenticate_igdb,
-	get_metadata,
-	get_metadata_id,
-	set_metadata,
-	set_metadata_for_key,
-	set_metadata_id
+	authenticate_igdb
 } from "./Python";
 import Logger from "./logger";
 import {Promise} from "bluebird";
 import {MetaDeckState} from "./hooks/metadataContext";
 import {SteamAppOverview} from "./SteamTypes";
-import {format, getTranslateFunc} from "./useTranslations";
+import {format, t} from "./useTranslations";
 import {Markdown} from "./markdown";
 import {runInAction} from "mobx";
 
@@ -71,8 +68,6 @@ export interface Manager
 
 export class MetadataManager implements Manager
 {
-	private t = getTranslateFunc()
-
 	get bypassBypass(): number
 	{
 		return this._bypassBypass;
@@ -123,14 +118,33 @@ export class MetadataManager implements Manager
 		this.state.loadingData.total = value;
 	}
 
-	get currentGame(): string
+	get game(): string
 	{
-		return this.state.loadingData.currentGame;
+		return this.state.loadingData.game;
 	}
 
-	set currentGame(value: string)
+	set game(value: string)
 	{
-		this.state.loadingData.currentGame = value;
+		this.state.loadingData.game = value;
+	}
+
+	get description(): string
+	{
+		return this.state.loadingData.description;
+	}
+
+	set description(value: string)
+	{
+		this.state.loadingData.description = value;
+	}
+	get fetching(): boolean
+	{
+		return this.state.loadingData.fetching;
+	}
+
+	set fetching(value: boolean)
+	{
+		this.state.loadingData.fetching = value;
 	}
 
 	get serverAPI(): ServerAPI
@@ -140,6 +154,10 @@ export class MetadataManager implements Manager
 
 	private verifiedDB: VerifiedDBResults[] = [];
 	private metadata: MetadataDictionary = {};
+	private metadata_id: MetadataIdDictionary = {};
+	private metadata_custom: MetadataCustomDictionary = {};
+	private client_id: string = "";
+	private client_secret: string = "";
 	private logger: Logger = new Logger("MetadataManager");
 
 	private _bypassBypass: number = 0;
@@ -154,26 +172,68 @@ export class MetadataManager implements Manager
 
 	public async removeCache(app_id: number)
 	{
-		// await localforage.removeItem(appId);
 		delete this.metadata[app_id];
-		await set_metadata_for_key(this.serverAPI, app_id, null)
+		await this.saveData();
+		let appData = appDetailsStore.GetAppData(app_id);
+		if (appData)
+		{
+			const overview = appStore.GetAppOverviewByAppID(app_id)
+			const desc = t("noDescription");
+			runInAction(() =>
+			{
+				appData.descriptionsData = {
+					strFullDescription: <Markdown>
+						{`# ${overview.display_name}\n` + desc}
+					</Markdown>,
+					strSnippet: <Markdown>
+						{`# ${overview.display_name}\n` + desc}
+					</Markdown>
+				}
+				appData.associationData = {
+					rgDevelopers: [],
+					rgPublishers: [],
+					rgFranchises: []
+				}
+				appDetailsCache.SetCachedDataForApp(app_id, "descriptions", 1, appData.descriptionsData)
+				appDetailsCache.SetCachedDataForApp(app_id, "associations", 1, appData.associationData)
+			});
+		}
 	};
 
-	public clearCache()
+	public async clearCache()
 	{
+		for (let app_id of Object.keys(this.metadata))
+		{
+			await this.removeCache(+app_id);
+		}
 		this.metadata = {};
-		void this.saveData();
+		await this.saveData();
+		this.logger.debug("Cache cleared", this.metadata);
+		this.serverAPI.toaster.toast({
+			title: t("title"),
+			body: t("cacheCleared")
+		})
 	};
 
 	public async loadData()
 	{
-		this.metadata = await get_metadata(this.serverAPI);
+		await this.state.settings.readSettings()
+		this.metadata = this.state.settings.metadata;
+		this.metadata_id = this.state.settings.metadata_id;
+		this.metadata_custom = this.state.settings.metadata_custom;
+		this.client_id = this.state.settings.client_id;
+		this.client_secret = this.state.settings.client_secret;
 		await this.saveData();
 	}
 
 	public async saveData()
 	{
-		await set_metadata(this.serverAPI, this.metadata);
+		this.state.settings.metadata = this.metadata;
+		this.state.settings.metadata_id = this.metadata_id;
+		this.state.settings.metadata_custom = this.metadata_custom;
+		this.state.settings.client_id = this.client_id;
+		this.state.settings.client_secret = this.client_secret;
+		await this.state.settings.writeSettings()
 	}
 
 	public normalize(str: string): string
@@ -187,16 +247,15 @@ export class MetadataManager implements Manager
 
 	public async setMetadataId(app_id: number, data_id: number): Promise<void>
 	{
-		let metadata = await get_metadata_id(this.serverAPI);
-		metadata[app_id] = data_id;
-		await set_metadata_id(this.serverAPI, metadata);
+		this.metadata_id[app_id] = data_id;
+		await this.saveData();
 		await this.removeCache(app_id);
 		const data = await this.fetchMetadataAsync(app_id);
 		let appData = appDetailsStore.GetAppData(app_id);
 		if (appData)
 		{
 			const overview = appStore.GetAppOverviewByAppID(app_id)
-			const desc = data?.description ?? this.t("noDescription");
+			const desc = data?.description ?? t("noDescription");
 			const devs = data?.developers ?? [];
 			const pubs = data?.publishers ?? [];
 			this.logger.debug(desc);
@@ -230,7 +289,7 @@ export class MetadataManager implements Manager
 
 	public async getMetadataId(app_id: number): Promise<number | undefined>
 	{
-		return (await get_metadata_id(this.serverAPI))[app_id];
+		return this.metadata_id[app_id];
 	}
 
 	public async getAllMetadataForGame(app_id: number): Promise<{ [index: number]: MetadataData } | undefined>
@@ -239,7 +298,7 @@ export class MetadataManager implements Manager
 		{
 
 			const display_name = appStore.GetAppOverviewByAppID(app_id)?.display_name;
-			const auth = await authenticate_igdb(this.serverAPI);
+			const auth = await authenticate_igdb(this.serverAPI, this.client_id, this.client_secret);
 			this.logger.debug(auth);
 
 			const response = (await this.serverAPI.fetchNoCors<HTTPResult>("https://api.igdb.com/v4/games", {
@@ -259,8 +318,8 @@ export class MetadataManager implements Manager
 				if (results.length > 0)
 				{
 					// const closest_name = closest(this.normalize(display_name), results.map(value => value.name) as string[])
-					const games = results.filter(value => (distance(this.normalize(display_name), value.name as string) < 20) && value.summary!=="") as Game[]
-					this.logger.debug("Games: ", games)
+					const games = results.filter(value => (distance(this.normalize(display_name), value.name as string) < 500) && value.summary!=="") as Game[]
+					this.logger.debug("Games: ", games, results)
 
 					let ret: { [index: number]: MetadataData } = {};
 					for (let game of games)
@@ -387,6 +446,7 @@ export class MetadataManager implements Manager
 								last_updated_at: new Date(),
 								release_date: game.first_release_date,
 								compat_category: compat_category,
+								compat_notes: compat_category_result?.Notes,
 								store_categories: gameCategories
 							}
 							this.logger.debug(data);
@@ -400,7 +460,7 @@ export class MetadataManager implements Manager
 		})
 	}
 
-	private throttle = throttledQueue(4, 1000, true);
+	private throttle = throttledQueue(1, 2000, true);
 
 	public async getMetadataForGame(app_id: number): Promise<MetadataData | undefined>
 	{
@@ -409,7 +469,8 @@ export class MetadataManager implements Manager
 		{
 
 			const display_name = appStore.GetAppOverviewByAppID(app_id)?.display_name;
-			const auth = await authenticate_igdb(this.serverAPI);
+			const auth = await authenticate_igdb(this.serverAPI, this.client_id, this.client_secret);
+			const data_id = await this.getMetadataId(app_id);
 			const response = (await this.serverAPI.fetchNoCors<HTTPResult>("https://api.igdb.com/v4/games", {
 				method: "POST",
 				headers: {
@@ -417,7 +478,7 @@ export class MetadataManager implements Manager
 					"Client-ID": `${auth.client_id}`,
 					"Authorization": `Bearer ${auth.token}`,
 				},
-				body: `search \"${display_name}\"; fields *, involved_companies.*, involved_companies.company.*, game_modes.*, multiplayer_modes.*, platforms.*;`
+				body: `${data_id ? `where id = ${data_id}` : `search \"${display_name}\"`}; fields *, involved_companies.*, involved_companies.company.*, game_modes.*, multiplayer_modes.*, platforms.*;`
 			}));
 			this.logger.debug("response", response)
 
@@ -426,7 +487,6 @@ export class MetadataManager implements Manager
 				const results: Game[] = JSON.parse(response.result.body);
 				if (results.length > 0)
 				{
-					const data_id = await this.getMetadataId(app_id);
 					let games: Game[];
 					if (data_id===undefined)
 					{
@@ -435,9 +495,8 @@ export class MetadataManager implements Manager
 						const games1 = results.filter(value => value.name===closest_name) as Game[]
 						this.logger.debug("Games: ", games1)
 						games = games1.filter(value => value.summary!=="")
-						let metadata = await get_metadata_id(this.serverAPI);
-						metadata[app_id] = games.length > 0 ? games[0].id:0;
-						await set_metadata_id(this.serverAPI, metadata);
+						this.metadata_id[app_id] = games.length > 0 ? games[0].id:0;
+						await this.saveData()
 						await this.removeCache(app_id);
 					} else if (data_id===0)
 					{
@@ -569,6 +628,7 @@ export class MetadataManager implements Manager
 							last_updated_at: new Date(),
 							release_date: game?.first_release_date,
 							compat_category: compat_category,
+							compat_notes: compat_category_result?.Notes,
 							store_categories: gameCategories
 						}
 						this.logger.debug(data);
@@ -619,20 +679,18 @@ export class MetadataManager implements Manager
 			{
 				this.logger.debug(`Caching metadata for ${app_id}: `, data);
 				this.metadata[app_id] = data;
-				appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
-				// appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = SteamDeckCompatCategory.VERIFIED
-				this.metadata[app_id].store_categories?.forEach(category => appStore.GetAppOverviewByAppID(app_id).m_setStoreCategories.add(category))
-				await set_metadata_for_key(this.serverAPI, app_id, this.metadata[app_id]);
+				await this.saveData();
 			}
-			return this.metadata[app_id];
 		} else
 		{
 			this.logger.debug(`Loading cached metadata for ${app_id}: `, this.metadata[app_id]);
-			appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id].compat_category
-			// appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = SteamDeckCompatCategory.VERIFIED
-			this.metadata[app_id].store_categories?.forEach(category => appStore.GetAppOverviewByAppID(app_id).m_setStoreCategories.add(category))
-			return this.metadata[app_id];
 		}
+		appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id]?.compat_category ?? SteamDeckCompatCategory.UNKNOWN
+
+		// appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = SteamDeckCompatCategory.VERIFIED
+		this.metadata[app_id]?.store_categories?.forEach(category => appStore.GetAppOverviewByAppID(app_id).m_setStoreCategories.add(category))
+
+		return this.metadata[app_id];
 	}
 
 	async getVerifiedDB(): Promise<void>
@@ -653,17 +711,18 @@ export class MetadataManager implements Manager
 
 	async refresh_metadata_for_apps(app_ids: number[]): Promise<void>
 	{
-		await this.loadData();
+		this.fetching = false;
 		this.total = app_ids.length;
 		this.processed = 0;
 		await Promise.map(app_ids, (async (app_id) =>
 		{
-			this.logger.debug(`Metadata at ${app_id}`, this.metadata);
 			await this.refresh_metadata_for_app(app_id);
 		}), {
-			concurrency: 3
+			concurrency: 8
 		});
 		this.globalLoading = false;
+		this.game = t("fetching");
+		this.description = "";
 		this.processed = 0;
 		this.total = 0;
 	}
@@ -675,19 +734,21 @@ export class MetadataManager implements Manager
 		this.logger.debug(`Refreshed metadata for ${app_id}: `, metadata);
 		if (overview && metadata)
 		{
-			this.currentGame = format(this.t("currentGame"), overview.display_name, !!metadata ? format(this.t("foundMetadata"), truncate(metadata.description, {
-				'length': 64,
+			this.game = overview.display_name;
+			this.description = !!metadata ? format(t("foundMetadata"), truncate(metadata.description, {
+				'length': 512,
 				'omission': "..."
 			}), {
-				0: this.t("unknown"),
-				1: this.t("unsupported"),
-				2: this.t("playable"),
-				3: this.t("verified")
-			}[metadata.compat_category]):this.t("noMetadata"));
+				0: t("unknown"),
+				1: t("unsupported"),
+				2: t("playable"),
+				3: t("verified")
+			}[metadata.compat_category]) : t("noMetadata");
 			this.processed++;
 		} else
 		{
-			this.currentGame = format(this.t("currentGame"), overview.display_name, this.t("noMetadata"));
+			this.game = overview.display_name;
+			this.description = t("noMetadata");
 			this.processed++;
 		}
 	}
@@ -697,20 +758,22 @@ export class MetadataManager implements Manager
 		if (!this.globalLoading)
 		{
 			this.globalLoading = true;
-			this.currentGame = this.t("fetching")
-			await this.refresh_metadata_for_apps((await getAllNonSteamAppOverviews()).sort((a, b) =>
-			{
-
-				if (a.display_name < b.display_name)
-				{
-					return -1;
-				}
-				if (a.display_name > b.display_name)
-				{
-					return 1;
-				}
-				return 0;
-			}).map(overview => overview.appid))
+			this.game = t("fetching")
+			this.fetching = true;
+			// await this.refresh_metadata_for_apps((await getAllNonSteamAppOverviews()).sort((a, b) =>
+			// {
+			//
+			// 	if (a.display_name < b.display_name)
+			// 	{
+			// 		return -1;
+			// 	}
+			// 	if (a.display_name > b.display_name)
+			// 	{
+			// 		return 1;
+			// 	}
+			// 	return 0;
+			// }).map(overview => overview.appid))
+			await this.refresh_metadata_for_apps((await getAllNonSteamAppIds()))
 		}
 	}
 

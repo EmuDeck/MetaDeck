@@ -1,4 +1,9 @@
-import {ButtonItem, PanelSection, PanelSectionRow, ProgressBarWithInfo, SteamSpinner} from "decky-frontend-lib";
+import {
+	ButtonItem,
+	PanelSection,
+	PanelSectionRow, ProgressBarWithInfo,
+	SteamSpinner
+} from "decky-frontend-lib";
 import {useMetaDeckState} from "./hooks/metadataContext";
 import {VFC} from "react";
 import {useTranslations} from "./useTranslations";
@@ -15,10 +20,16 @@ export const MetaDeckComponent: VFC = () =>
 				</PanelSectionRow>
 				<PanelSectionRow>
 					<ProgressBarWithInfo
-							nProgress={loadingData.percentage}
 							label={t("loading")}
-							description={`${loadingData.processed}/${loadingData.total}`}
-							sOperationText={loadingData.currentGame}
+							layout="inline"
+							bottomSeparator="none"
+							sOperationText={loadingData.game}
+							description={loadingData.description}
+							nProgress={loadingData.percentage}
+							sTimeRemaining={<div style={{
+								paddingRight: "10px"
+							}}>{!loadingData.fetching ? `${loadingData.processed}/${loadingData.total}` : ""}</div>}
+							indeterminate={loadingData.fetching}
 					/>
 				</PanelSectionRow>
 			</PanelSection> :
@@ -26,7 +37,7 @@ export const MetaDeckComponent: VFC = () =>
 				<PanelSectionRow>
 					<ButtonItem onClick={() =>
 					{
-						metadataManager.clearCache()
+						void metadataManager.clearCache();
 					}}>
 						Clear Cache
 					</ButtonItem>

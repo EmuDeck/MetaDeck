@@ -9,32 +9,34 @@ import importAssets from 'rollup-plugin-import-assets';
 import {name} from "./plugin.json";
 import {createPathTransform} from "rollup-sourcemap-path-transform";
 
-const production = process.env.NODE_ENV !== 'development'
+const production = process.env["RELEASE_TYPE"] !== 'development'
 
 export default defineConfig({
 	input: './src/ts/index.tsx',
 	plugins: [
 		commonjs(),
-		nodeResolve({browser: true}),
+		nodeResolve({browser: true, moduleDirectories: ["node_modules"]}),
 		typescript({sourceMap: !production, inlineSources: !production}),
 		json(),
 		replace({
 			preventAssignment: false,
 			'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+			'process.env.RELEASE_TYPE': JSON.stringify(process.env.RELEASE_TYPE),
 		}),
 		importAssets({
 			publicPath: `http://127.0.0.1:1337/plugins/${name}/`
 		})
 	],
 	context: 'window',
-	external: ['react', 'react-dom'],
+	external: ['react', 'react-dom', 'decky-frontend-lib'],
 	output: {
 		file: 'dist/index.js',
 		sourcemap: !production ? 'inline' : false,
 		sourcemapPathTransform: !production ? createPathTransform({
 			prefixes: {
 				"../src/src/ts/": `/plugins/${name}/src/`,
-				"../node_modules/.pnpm/": `/plugins/${name}/node_modules/`
+				"../node_modules/.pnpm/": `/plugins/${name}/node_modules/`,
+				"../lib/": `/plugins/${name}/lib/`,
 			},
 			requirePrefix: true
 		}) : undefined,
@@ -42,7 +44,8 @@ export default defineConfig({
 		globals: {
 			react: 'SP_REACT',
 			'react-dom': 'SP_REACTDOM',
-		},
+            'decky-frontend-lib': 'DFL'
+        },
 		format: 'iife',
 		exports: 'default',
 	},

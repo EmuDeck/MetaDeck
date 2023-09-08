@@ -6,7 +6,7 @@ import {Patch, ServerAPI} from "decky-frontend-lib";
 import {ComponentType} from "react";
 import {RouteProps} from "react-router";
 
-let systemClock: Clock = {
+export const systemClock: Clock = {
 	getTimeMs() {
 		return Date.now()
 	}
@@ -42,7 +42,7 @@ export type Events =
 	   | { type: "Unmount", createdAt: number, mounts: Mountable[] }
 	   | { type: "Mount", createdAt: number, mounts: Mountable[] }
 
-export class MountManager
+export class MountManager implements AsyncMountable
 {
 	private mounts: Array<Mountable | AsyncMountable> = []
 	private logger: Logger;

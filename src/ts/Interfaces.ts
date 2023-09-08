@@ -17,13 +17,15 @@ export interface MetadataData
 	developers?: Developer[],
 	publishers?: Publisher[],
 	compat_category: SteamDeckCompatCategory,
-
+	compat_notes?: string,
 	store_categories: StoreCategory[],
 }
 
 export type MetadataDictionary = Record<number, MetadataData>
 
 export type MetadataIdDictionary = Record<number, number>
+
+export type MetadataCustomDictionary = Record<number, boolean>
 
 export interface HTTPResult
 {
@@ -112,6 +114,7 @@ export interface VerifiedDBResults
 	"Game": string,
 	"Emulator": string,
 	"Boots": YesNo,
-	"Playable": YesNo
+	"Playable": YesNo,
+	"Notes": string
 }
 

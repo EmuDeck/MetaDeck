@@ -22,16 +22,14 @@ export function useTranslations() {
 	}
 }
 
-export function getTranslateFunc() {
-	return function (key: keyof (typeof languages)['en']): string {
-		const lang = getCurrentLanguage()
-		if (languages[lang]?.[key]?.length) {
-			return languages[lang]?.[key]
-		} else if (languages.en?.[key]?.length) {
-			return languages.en?.[key]
-		} else {
-			return key
-		}
+export function t(key: keyof (typeof languages)['en']): string {
+	const lang = getCurrentLanguage()
+	if (languages[lang]?.[key]?.length) {
+		return languages[lang]?.[key]
+	} else if (languages.en?.[key]?.length) {
+		return languages.en?.[key]
+	} else {
+		return key
 	}
 }
 
