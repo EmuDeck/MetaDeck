@@ -7,7 +7,7 @@
 	"refresh": "刷新",
 	"loading": "加载中",
 	"fetching": "获取中",
-	"noMetadata": "No Metadata Found",
+	"noMetadata": "未找到元数据",
 	"foundMetadata": "Description: %%, Verified status: %%",
 	"currentGame": "%%: %%",
 	"verified": "已验证",
