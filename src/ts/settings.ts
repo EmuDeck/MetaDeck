@@ -1,30 +1,26 @@
 import {MetaDeckState} from "./hooks/metadataContext";
 import {MetadataCustomDictionary, MetadataDictionary, MetadataIdDictionary} from "./Interfaces";
-import Logger from "./logger";
+// import Logger from "./logger";
 import {systemClock} from "./System";
-import {MetaDeckClient} from "../../lib/frontend/MetaDeck-frontend";
+import {MetaDeckClient, yasdpl} from "../../lib/frontend";
+import Logger = yasdpl.Logger;
 
 export type SettingsData = {
 	metadata_id: MetadataIdDictionary,
 	metadata_custom: MetadataCustomDictionary,
-	metadata: MetadataDictionary,
-	client_id: string,
-	client_secret: string
+	metadata: MetadataDictionary
 }
 
 export class Settings {
-	private readonly backendAPI: MetaDeckClient;
 	private readonly state: MetaDeckState;
-	private readonly logger: Logger = new Logger("Settings");
+	private readonly logger: Logger;
 	// private readonly mutex: Mutex = new Mutex();
 	// private readonly packet_size: number = 50;
 
 	data: SettingsData = {
 		metadata_id: {},
 		metadata_custom: {},
-		metadata: {},
-		client_id: "",
-		client_secret: ""
+		metadata: {}
 	};
 
 	get metadata_id(): MetadataIdDictionary {return this.get("metadata_id")}
@@ -36,17 +32,10 @@ export class Settings {
 	get metadata(): MetadataDictionary {return this.get("metadata")}
 	set metadata(metadata: MetadataDictionary) {this.set("metadata", metadata)}
 
-	get client_id(): string {return this.get("client_id")}
-	set client_id(client_id: string) {this.set("client_id", client_id)}
-
-	get client_secret(): string {return this.get("client_secret")}
-	set client_secret(client_secret: string) {this.set("client_secret", client_secret)}
-
-	constructor(backendAPI: MetaDeckClient, state: MetaDeckState, startingSettings: SettingsData = {} as SettingsData)
+	constructor(state: MetaDeckState, startingSettings: SettingsData = {} as SettingsData)
 	{
 		this.state = state;
-		this.backendAPI = backendAPI;
-
+		this.logger = new Logger(MetaDeckClient, "Settings");
 		this.setMultiple(startingSettings);
 	}
 
@@ -55,7 +44,6 @@ export class Settings {
 		if (this.data.hasOwnProperty(key))
 		{
 			this.data[key] = value;
-			void this.writeSettings()
 		}
 		this.state.notifyUpdate()
 		return this
@@ -107,7 +95,7 @@ export class Settings {
 		// }
 		this.logger.debug("Reading settings...");
 		const start = systemClock.getTimeMs();
-		this.data = (await this.backendAPI.readConfig())
+		this.data = await MetaDeckClient.readConfig();
 		const end = systemClock.getTimeMs();
 		this.logger.debug("Read settings in " + (end - start) + "ms");
 	}
@@ -144,7 +132,7 @@ export class Settings {
 		// }
 		this.logger.debug("Writing settings...");
 		const start = systemClock.getTimeMs();
-		await this.backendAPI.writeConfig(this.data)
+		await MetaDeckClient.writeConfig(this.data);
 		const end = systemClock.getTimeMs();
 		this.logger.debug("Wrote settings in " + (end - start) + "ms");
 	}

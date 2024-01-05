@@ -1,12 +1,13 @@
 import {useEffect, useState, VFC} from "react";
 import {MetadataManager} from "./MetadataManager";
-import {ButtonItem, DropdownItem, PanelSection, SteamSpinner, useParams} from "decky-frontend-lib";
+import {ButtonItem, DropdownItem, Navigation, PanelSection, SteamSpinner, useParams} from "decky-frontend-lib";
 import {MetadataData} from "./Interfaces";
 import {useTranslations} from "./useTranslations";
 import {Markdown} from "./markdown";
 import React from "react";
 
-export const ChangeMetadataComponent: VFC<{ manager: MetadataManager }> = ({manager}) =>
+export const
+	   ChangeMetadataComponent: VFC<{ manager: MetadataManager }> = ({manager}) =>
 {
 	const {appid} = useParams<{ appid: string }>()
 	const app_id = +appid;
@@ -93,6 +94,7 @@ ${selected.description}
 								<ButtonItem onClick={async () =>
 								{
 									await manager.setMetadataId(app_id, metadata_id)
+									Navigation.NavigateBack()
 								}}>
 									{t("save")}
 								</ButtonItem>

@@ -8,6 +8,7 @@ import importAssets from 'rollup-plugin-import-assets';
 
 import {name} from "./plugin.json";
 import {createPathTransform} from "rollup-sourcemap-path-transform";
+import sourcemaps from "rollup-plugin-sourcemaps";
 
 const production = process.env["RELEASE_TYPE"] !== 'development'
 
@@ -25,6 +26,16 @@ export default defineConfig({
 		}),
 		importAssets({
 			publicPath: `http://127.0.0.1:1337/plugins/${name}/`
+		}),
+		sourcemaps({
+			// include: [
+			// 	   "**frontendMain**",
+			// 	   "**commonMain**"
+			// 	   // /\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/yasdpl-kt\/src\/frontendMain\/kotlin\//,
+			// 	   // /\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/yasdpl-kt\/src\/commonMain\/kotlin\//,
+			// 	   // /\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/src\/frontendMain\/kotlin\//,
+			// 	   // /\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/src\/commonMain\/kotlin\//
+			// ]
 		})
 	],
 	context: 'window',
@@ -34,18 +45,26 @@ export default defineConfig({
 		sourcemap: !production ? 'inline' : false,
 		sourcemapPathTransform: !production ? createPathTransform({
 			prefixes: {
-				"../src/src/ts/": `/plugins/${name}/src/`,
-				"../node_modules/.pnpm/": `/plugins/${name}/node_modules/`,
-				"../lib/": `/plugins/${name}/lib/`,
+				"../src/src/ts/": `/plugins/${name}/src/ts/`,
+				"../lib/frontend/": `/plugins/${name}/lib/frontend/`,
+				// "../../compileSync/frontend/main/productionLibrary/kotlin/": `/plugins/${name}/lib/stdlib/`,
+				// "../../opt/teamcity-agent/work/88b0986a7186d029/atomicfu/": `/plugins/${name}/lib/atomicfu/`,
+				// "../../mnt/agent/work/44ec6e850d5c63f0/kotlinx-coroutines-core/": `/plugins/${name}/lib/kotlinx-coroutines-core/`,
+				// "../../mnt/agent/work/8d547b974a7be21f/ktor-io/": `/plugins/${name}/lib/ktor-io/`,
+				"../../../../../src/frontendMain/kotlin": `/plugins/${name}/src/frontendMain/kotlin/`,
+				"../../../../../src/commonMain/kotlin": `/plugins/${name}/src/commonMain/kotlin/`,
+				"../../../../../../../yasdpl-kt/src/frontendMain/kotlin/": `/plugins/${name}/lib/yasdpl/src/frontendMain/kotlin/`,
+				"../../../../../../../yasdpl-kt/src/commonMain/kotlin/": `/plugins/${name}/lib/yasdpl/src/commonMain/kotlin/`,
+				"../node_modules/.pnpm/": `/plugins/${name}/node_modules/`
 			},
-			requirePrefix: true
+			requirePrefix: false
 		}) : undefined,
 		footer: () => !production ? `\n//# sourceURL=http://localhost:1337/plugins/${name}/frontend_bundle` : "",
 		globals: {
 			react: 'SP_REACT',
 			'react-dom': 'SP_REACTDOM',
-            'decky-frontend-lib': 'DFL'
-        },
+			'decky-frontend-lib': 'DFL'
+		},
 		format: 'iife',
 		exports: 'default',
 	},

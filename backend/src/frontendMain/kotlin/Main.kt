@@ -4,43 +4,38 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.await
 import kotlinx.coroutines.promise
 import kotlinx.serialization.json.JsonObject
-import yasdpl.HandlerRegistry
-import yasdpl.WebsocketClient
-import yasdpl.fromJsonDynamic
-import yasdpl.toJsonDynamic
+import yasdpl.*
 import kotlin.js.Promise
 
-@ExperimentalJsExport
+@OptIn(ExperimentalJsExport::class)
 @JsExport
 external interface SettingsData
 {
-	val metadata_id: dynamic
-	val metadata_custom: dynamic
-	val metadata: dynamic
-	val client_id: String
-	val client_secret: String
+	var metadata_id: Any
+	var metadata_custom: Any
+	var metadata: Any
 }
 @Suppress("NON_EXPORTABLE_TYPE")
-@DelicateCoroutinesApi
-@ExperimentalJsExport
+@OptIn(ExperimentalJsExport::class, DelicateCoroutinesApi::class)
 @JsExport
-class MetaDeckClient : WebsocketClient(4200)
+object MetaDeckClient : WebsocketClient(4200)
 {
-	override fun HandlerRegistry.initServices() = Unit
+	val logger = Logger(this, "MetaDeckClient")
+	override fun ServiceRegistry.initServices() = Unit
 
 	fun readConfig(): Promise<SettingsData> = GlobalScope.promise {
-		var config = JsonObject(mapOf())
+		var ret = JsonObject(mapOf())
 		send("config", "readConfig") {
-			config = receiveDeserialized<JsonObject>()
+			ret = receiveDeserialized<JsonObject>()
 			return@send Result.success(Unit)
 		}.await()
-		return@promise config.fromJsonDynamic().unsafeCast<SettingsData>()
+		return@promise ret.fromJsonDynamic().unsafeCast<SettingsData>()
 	}
 
 	fun writeConfig(config: SettingsData): Promise<Unit> = GlobalScope.promise {
 		send("config", "writeConfig") {
 			sendSerialized(config.toJsonDynamic())
 			return@send Result.success(Unit)
-		}
+		}.await()
 	}
 }

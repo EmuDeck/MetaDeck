@@ -1,6 +1,14 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.util.archivesName
+
+val yasdplVersion: String by project
+
 plugins {
 	kotlin("multiplatform") version "1.9.0"
 	kotlin("plugin.serialization") version "1.9.0"
+	id("com.github.johnrengelman.shadow") version "8.1.1"
+	id("org.graalvm.buildtools.native") version "0.9.8"
+	application
 }
 
 group = "com.emudeck"
@@ -12,13 +20,11 @@ repositories {
 //		url = uri("./lib")
 //	}
 	maven {
-		url = uri("https://codeberg.org/api/packages/Witherking25/maven")
-     }
+		url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+	}
 }
 
 kotlin {
-	val okioVersion = "3.4.0"
-	val ktor_version = "2.3.2"
 	js("frontend", IR) {
 		binaries.library()
 		generateTypeScriptDefinitions()
@@ -35,30 +41,21 @@ kotlin {
 		}
 	}
 
-	linuxX64("backend") {
-		binaries {
-			executable("backend") {
-				entryPoint = "main"
-//				if (File("/.dockerenv").exists())
-
-			}
-		}
+	jvm("backend") {
+		withJava()
 	}
 	sourceSets {
 		val backendMain by getting {
 			dependencies {
-				implementation("com.squareup.okio:okio:$okioVersion")
 
-				implementation("com.emudeck.yasdpl:yasdpl-backend:2.0.0")
+				implementation("io.github.emudeck.yasdpl:yasdpl-backend:$yasdplVersion")
 			}
 		}
 		val backendTest by getting
 
 		val commonMain by getting {
 			dependencies {
-				implementation("com.emudeck.yasdpl:yasdpl:2.0.0")
-				implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
-
+				implementation("io.github.emudeck.yasdpl:yasdpl:$yasdplVersion")
 			}
 		}
 
@@ -66,13 +63,39 @@ kotlin {
 
 		val frontendMain by getting {
 			dependencies {
-				implementation("com.emudeck.yasdpl:yasdpl-frontend:2.0.0")
-				implementation("io.ktor:ktor-client-websockets:$ktor_version")
-				implementation("io.ktor:ktor-client-js:$ktor_version")
+				implementation("io.github.emudeck.yasdpl:yasdpl-frontend:$yasdplVersion")
 			}
 		}
 
 		val frontendTest by getting
 
+	}
+}
+
+application {
+	mainClass.set("MainKt")
+}
+
+tasks.withType<ShadowJar> {
+	archiveFileName.set("backend.jar")
+}
+
+graalvmNative {
+	binaries {
+		named("main") {
+			fallback.set(false)
+			verbose.set(true)
+
+			buildArgs.add("--initialize-at-build-time=ch.qos.logback")
+			buildArgs.add("--initialize-at-build-time=io.ktor,kotlin")
+			buildArgs.add("--initialize-at-build-time=org.slf4j.LoggerFactory")
+			buildArgs.add("--initialize-at-run-time=io.ktor.serialization.kotlinx.json.JsonSupportKt")
+
+			buildArgs.add("-H:+InstallExitHandlers")
+			buildArgs.add("-H:+ReportUnsupportedElementsAtRuntime")
+			buildArgs.add("-H:+ReportExceptionStackTraces")
+
+			imageName.set("backend")
+		}
 	}
 }

@@ -9,13 +9,12 @@ export interface AppProps
 
 export interface MetadataData
 {
-	last_updated_at: Date,
-	release_date?: number,
 	title: string,
 	id: number,
 	description: string,
 	developers?: Developer[],
 	publishers?: Publisher[],
+	release_date?: number,
 	compat_category: SteamDeckCompatCategory,
 	compat_notes?: string,
 	store_categories: StoreCategory[],
@@ -59,14 +58,14 @@ export interface Game
 
 export interface Developer
 {
-	url: string,
-	name: string
+	name: string,
+	url: string
 }
 
 export interface Publisher
 {
-	url: string,
-	name: string
+	name: string,
+	url: string
 }
 
 export enum YesNo

@@ -1,10 +1,10 @@
-import Logger from "./logger";
-import {SteamAppOverview} from "./SteamTypes";
-import {Promise} from "bluebird";
 import {registerForLoginStateChange, waitForServicesInitialized} from "./LibraryInitializer";
 import {Patch, ServerAPI} from "decky-frontend-lib";
 import {ComponentType} from "react";
 import {RouteProps} from "react-router";
+import {yasdpl} from "../../lib/frontend";
+import Logger = yasdpl.Logger;
+import {EventBus} from "./events";
 
 export const systemClock: Clock = {
 	getTimeMs() {
@@ -33,14 +33,6 @@ export interface AsyncPatchMountable
 {
 	patch(): Promise<Patch>
 }
-
-export type Events =
-	   | { type: "GameStarted", createdAt: number, game: SteamAppOverview }
-	   | { type: "GameStopped", createdAt: number, game: SteamAppOverview }
-	   | { type: "Suspended", createdAt: number, game: SteamAppOverview | null }
-	   | { type: "ResumeFromSuspend", createdAt: number, game: SteamAppOverview | null }
-	   | { type: "Unmount", createdAt: number, mounts: Mountable[] }
-	   | { type: "Mount", createdAt: number, mounts: Mountable[] }
 
 export class MountManager implements AsyncMountable
 {
@@ -87,14 +79,18 @@ export class MountManager implements AsyncMountable
 	}
 
 	async mount() {
-		await Promise.map(this.mounts, async (mount: Mountable | AsyncMountable) => await mount.mount(), { concurrency: 1 })
-		this.eventBus.emit({ type: "Mount", createdAt: this.clock.getTimeMs(), mounts: this.mounts })
+		for (let mount of this.mounts) {
+			await mount.mount()
+		}
+		await this.eventBus.emit("Mount", {createdAt: this.clock.getTimeMs(), mounts: this.mounts})
 	}
 
 	async unMount()
 	{
-		await Promise.map(this.mounts, async (mount: Mountable | AsyncMountable) => await mount.unMount(), { concurrency: 1 })
-		this.eventBus.emit({ type: "Unmount", createdAt: this.clock.getTimeMs(), mounts: this.mounts })
+		for (let mount of this.mounts) {
+			await mount.unMount()
+		}
+		await this.eventBus.emit("Unmount", {createdAt: this.clock.getTimeMs(), mounts: this.mounts})
 	}
 
 	register(): () => void
@@ -105,7 +101,7 @@ export class MountManager implements AsyncMountable
 				   (async function () {
 					   if (await waitForServicesInitialized())
 					   {
-						   self.logger.log(`Initializing plugin for ${username}`);
+						   self.logger.info(`Initializing plugin for ${username}`);
 						   await self.mount()
 					   }
 				   })().catch(err => self.logger.error("Error while initializing plugin", err));
@@ -113,25 +109,11 @@ export class MountManager implements AsyncMountable
 			   function () {
 				   {
 					   (async function () {
-						   self.logger.log("Deinitializing plugin");
+						   self.logger.info("Deinitializing plugin");
 						   await self.unMount()
 					   })().catch(err => self.logger.error("Error while deinitializing plugin", err));
 				   }
 			   }
 		);
-	}
-}
-
-export class EventBus {
-	logger: Logger = new Logger("EventBus")
-	private subscribers: ((event: Events) => void)[] = []
-
-	public emit(event: Events): void {
-		this.logger.log("New event", event)
-		this.subscribers.forEach((it: (event: Events) => void): void => { it(event) })
-	}
-
-	public addSubscriber(subscriber: (event: Events) => void): void {
-		this.subscribers.push(subscriber)
 	}
 }

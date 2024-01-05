@@ -1,10 +1,8 @@
 import {ServerAPI} from "decky-frontend-lib";
 import {createContext, FC, ReactNode, useContext, useEffect, useState} from "react";
-import {Promise} from "bluebird";
-import {getAllNonSteamAppOverviews, Manager, MetadataManager} from "../MetadataManager";
+import {getAllNonSteamAppOverviews, MetadataManager} from "../MetadataManager";
 import {Settings} from "../settings";
 import {t} from "../useTranslations";
-import {MetaDeckClient} from "../../../lib/frontend/MetaDeck-frontend";
 
 interface LoadingData
 {
@@ -34,7 +32,6 @@ interface MetaDeckStateContext
 	managers: Managers,
 	apps: Promise<number[]>,
 	serverAPI: ServerAPI,
-	backendAPI: MetaDeckClient,
 	settings: Settings,
 	refresh(): Promise<void>,
 }
@@ -132,13 +129,11 @@ export class MetaDeckState
 
 	private readonly _serverAPI;
 	private readonly _settings;
-	private readonly _backendAPI;
 
-	constructor(serverAPI: ServerAPI, backendAPI: MetaDeckClient)
+	constructor(serverAPI: ServerAPI)
 	{
 		this._serverAPI = serverAPI;
-		this._backendAPI = backendAPI;
-		this._settings = new Settings(backendAPI, this);
+		this._settings = new Settings(this);
 	}
 
 	private readonly _managers: Managers = {
@@ -154,7 +149,6 @@ export class MetaDeckState
 			managers: this.managers,
 			apps: this.apps,
 			serverAPI: this.serverAPI,
-			backendAPI: this.backendAPI,
 			settings: this.settings,
 			refresh: () => this.refresh(),
 		};
@@ -189,41 +183,32 @@ export class MetaDeckState
 		return this._serverAPI;
 	}
 
-	get backendAPI(): MetaDeckClient
-	{
-		return this._backendAPI;
-	}
-
 	get settings(): Settings
 	{
 		return this._settings;
 	}
 	async init(): Promise<void>
 	{
-		Promise.map(Object.values(this._managers), (async (manager: Manager) => {
+		for (let manager of Object.values(this._managers)) {
 			await manager.init()
-		})).then(() => {
-			this.notifyUpdate();
-		});
+		}
+		this.notifyUpdate();
 	}
 
 	async deinit(): Promise<void>
 	{
-		Promise.map(Object.values(this._managers), (async (manager: Manager) => {
+		for (let manager of Object.values(this._managers)) {
 			await manager.deinit()
-		})).then(() => {
-			this.notifyUpdate();
-		});
-
+		}
+		this.notifyUpdate();
 	}
 
 	async refresh(): Promise<void>
 	{
-		Promise.map(Object.values(this._managers), (async (manager: Manager) => {
+		for (let manager of Object.values(this._managers)) {
 			await manager.refresh()
-		})).then(() => {
-			this.notifyUpdate();
-		});
+		}
+		this.notifyUpdate();
 	}
 
 	notifyUpdate(): void
