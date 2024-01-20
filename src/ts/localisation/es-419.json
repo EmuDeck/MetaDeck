@@ -1,15 +1,17 @@
 {
+	"title": "MetaDeck",
 	"changeMetadata": "Cambiar Metadatos",
 	"noDescription": "No se encontró la descripción",
-	"save": "Save",
-	"refresh": "Refresh",
-	"loading": "Loading",
-	"fetching": "Fetching",
-	"noMetadata": "No Metadata Found",
-	"foundMetadata": "Description: %%, Verified status: %%",
+	"save": "Guardar",
+	"cacheCleared": "Cache Cleared",
+	"refresh": "Recargar",
+	"loading": "Cargando",
+	"fetching": "Obteniendo",
+	"noMetadata": "No se encontraron metadatos",
+	"foundMetadata": "Descripción: %%, Estado de verificación: %%",
 	"currentGame": "%%: %%",
-	"verified": "Verified",
-	"playable": "Playable",
-	"unsupported": "Unsupported",
-	"unknown": "Unknown"
+	"verified": "Verificado",
+	"playable": "Jugable",
+	"unsupported": "No soportado",
+	"unknown": "Desconocido"
 }

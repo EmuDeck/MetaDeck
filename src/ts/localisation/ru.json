@@ -1,15 +1,17 @@
 {
+	"title": "MetaDeck",
 	"changeMetadata": "Сменить метаданные",
 	"noDescription": "Описание отсутствует",
 	"save": "Сохранить",
+	"cacheCleared": "Кэш очищен",
 	"refresh": "Обновить",
 	"loading": "Загрузка",
-	"fetching": "Fetching",
+	"fetching": "Получение",
 	"noMetadata": "Метаданные не найдены",
-	"foundMetadata": "Description: %%, Verified status: %%",
+	"foundMetadata": "Описание: %%, Подтвержденный статус: %%",
 	"currentGame": "%%: %%",
-	"verified": "Verified",
-	"playable": "Playable",
-	"unsupported": "Unsupported",
-	"unknown": "Unknown"
+	"verified": "Проверено",
+	"playable": "Играбельно",
+	"unsupported": "Не поддерживается",
+	"unknown": "Неизвестно"
 }

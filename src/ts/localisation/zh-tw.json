@@ -1,15 +1,17 @@
 {
+	"title": "MetaDeck",
 	"changeMetadata": "修改元資料",
-	"noDescription": "未找到描述",
+	"noDescription": "無描述",
 	"save": "儲存",
+	"cacheCleared": "快取已清除",
 	"refresh": "重新整理",
 	"loading": "載入中",
-	"fetching": "讀取中",
+	"fetching": "獲取中",
 	"noMetadata": "未發現元資料",
 	"foundMetadata": "描述：%%，驗證狀態：%%",
 	"currentGame": "%%：%%",
 	"verified": "已驗證",
-	"playable": "可播放",
+	"playable": "可遊玩",
 	"unsupported": "不支援",
 	"unknown": "未知"
 }
