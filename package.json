@@ -1,6 +1,6 @@
 {
 	"name": "metadeck",
-	"version": "2.0.1",
+	"version": "2.0.2",
 	"description": "Plugin for viewing metadata for non steam games from IGDB. Part of the EmuDeck Project",
 	"scripts": {
 		"build": "shx rm -rf dist && ./update.sh && rollup -c",
