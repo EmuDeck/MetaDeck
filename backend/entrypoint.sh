@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
-
-mkdir -p ./.cache || true
+sudo chown -R 1000:1000 .
+mkdir -p ./.cache
 [ -d "./.cache/.gradle" ] && cp -r ./.cache/.gradle $HOME/
 #[ -d "./.cache/.konan" ] && cp -r ./.cache/.konan /root/
 #./gradlew kotlinUpgradeYarnLock build --refresh-dependencies
@@ -10,7 +10,7 @@ sudo mkdir -p ./out
 #cp ./build/bin/backend/backendReleaseExecutable/backend.kexe ./out/backend
 sudo cp ./build/native/nativeCompile/backend ./out/backend
 sudo cp ./build/libs/backend.jar ./out/backend.jar
-[ -d "./.cache" ] && [ -d "$HOME/.gradle" ] && cp -r $HOME/.gradle ./.cache/
+[ -d "$HOME/.gradle" ] && cp -r $HOME/.gradle ./.cache/
 #[ -d "/root/.konan" ] && cp -r /root/.konan ./.cache/
 #ldd ./out/backend
 #echo "Fixing link data for SteamOS"
