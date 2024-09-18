@@ -34,10 +34,6 @@ type SteamAppLanguages = {
 	strShortName: string
 }
 
-import React, {ReactElement} from "react";
-import {AppDetails} from "decky-frontend-lib";
-import {StoreCategory} from "./Interfaces";
-
 type SteamShortcut = {
 	appid: number,
 	data: {
@@ -184,7 +180,8 @@ type SteamAppOverview = {
 	gameid: string,
 	appid: number,
 	display_name: string,
-	steam_deck_compat_category: number,
+	steam_hw_compat_category_packed: number,
+	readonly steam_deck_compat_category: number,
 	size_on_disk: string | undefined, // can use the type of this to determine if an app is installed!
 	association: { type: number, name: string }[],
 	canonicalAppType: number,

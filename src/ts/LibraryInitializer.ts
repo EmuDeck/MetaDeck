@@ -1,4 +1,5 @@
-import {sleep} from "decky-frontend-lib";
+import {sleep} from "@decky/ui";
+
 export function registerForLoginStateChange(onLogin: (username: string) => void, onLogout: () => void): () => void {
 	try {
 		let isLoggedIn: boolean | null = null;

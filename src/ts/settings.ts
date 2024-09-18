@@ -1,9 +1,8 @@
 import {MetaDeckState} from "./hooks/metadataContext";
 import {MetadataCustomDictionary, MetadataDictionary, MetadataIdDictionary} from "./Interfaces";
-// import Logger from "./logger";
+import Logger from "./logger";
 import {systemClock} from "./System";
-import {MetaDeckClient, yasdpl} from "../../lib/frontend";
-import Logger = yasdpl.Logger;
+import {callable} from "@decky/api";
 
 export type SettingsData = {
 	metadata_id: MetadataIdDictionary,
@@ -16,6 +15,9 @@ export class Settings {
 	private readonly logger: Logger;
 	// private readonly mutex: Mutex = new Mutex();
 	// private readonly packet_size: number = 50;
+
+	private read = callable<[], SettingsData>("read")
+	private write = callable<[SettingsData], void>("write")
 
 	data: SettingsData = {
 		metadata_id: {},
@@ -35,7 +37,7 @@ export class Settings {
 	constructor(state: MetaDeckState, startingSettings: SettingsData = {} as SettingsData)
 	{
 		this.state = state;
-		this.logger = new Logger(MetaDeckClient, "Settings");
+		this.logger = new Logger("Settings");
 		this.setMultiple(startingSettings);
 	}
 
@@ -95,7 +97,7 @@ export class Settings {
 		// }
 		this.logger.debug("Reading settings...");
 		const start = systemClock.getTimeMs();
-		this.data = await MetaDeckClient.readConfig();
+		this.data = await this.read();
 		const end = systemClock.getTimeMs();
 		this.logger.debug("Read settings in " + (end - start) + "ms");
 	}
@@ -132,7 +134,7 @@ export class Settings {
 		// }
 		this.logger.debug("Writing settings...");
 		const start = systemClock.getTimeMs();
-		await MetaDeckClient.writeConfig(this.data);
+		await this.write(this.data);
 		const end = systemClock.getTimeMs();
 		this.logger.debug("Wrote settings in " + (end - start) + "ms");
 	}

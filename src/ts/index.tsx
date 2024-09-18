@@ -1,18 +1,19 @@
 import {
-	afterPatch,
-	beforePatch,
-	callOriginal,
-	definePlugin,
-	Patch,
-	replacePatch,
-	Router,
-	ServerAPI,
-	sleep,
-} from "decky-frontend-lib";
-import {FaDatabase} from "react-icons/fa";
+	definePlugin, fetchNoCors,
+	Plugin
+} from "@decky/api";
 
+import {
+	name
+} from "@decky/manifest"
+
+import {
+	version
+} from "@decky/pkg"
+
+import {FaDatabase} from "react-icons/fa";
+import Logger from "./logger";
 import {MetadataManager} from "./MetadataManager";
-import {Title} from "./Title";
 import {MetaDeckComponent} from "./metaDeckComponent";
 import contextMenuPatch, {LibraryContextMenu} from "./contextMenuPatch";
 import {t} from "./useTranslations";
@@ -24,29 +25,11 @@ import {MetaDeckState, MetaDeckStateContextProvider} from "./hooks/metadataConte
 import {Markdown} from "./markdown";
 import {ChangeMetadataComponent} from "./changeMetadataComponent";
 import {EventBus} from "./events";
-import {MetaDeckClient, yasdpl} from "../../lib/frontend";
-import Logger = yasdpl.Logger;
 import {stateTransaction} from "./util";
+import {afterPatch, beforePatch, callOriginal, Patch, replacePatch, Router, sleep} from "@decky/ui";
 
-interface Plugin
-{
-	name: string;
-	version?: string;
-	icon: JSX.Element;
-	content?: JSX.Element;
 
-	onDismount?(): void;
-
-	alwaysRender?: boolean;
-}
-
-interface PluginLoader
-{
-	plugins: Plugin[];
-}
-
-declare global
-{
+declare global {
 	let appStore: AppStore;
 	let appDetailsStore: AppDetailsStore;
 
@@ -71,7 +54,10 @@ declare global
 	}
 
 	let collectionStore: CollectionStore;
-
+	interface PluginLoader
+	{
+		plugins: Plugin[];
+	}
 
 	interface Window
 	{
@@ -115,12 +101,12 @@ declare global
 
 
 
-export default definePlugin((serverAPI: ServerAPI) => {
-	const logger = new Logger(MetaDeckClient, "Index");
-	const state = new MetaDeckState(serverAPI)
+export default definePlugin(() => {
+	const logger = new Logger("Index");
+	const state = new MetaDeckState()
 	const metadataManager = new MetadataManager(state);
 	const eventBus = new EventBus();
-	const mountManager = new MountManager(eventBus, logger, serverAPI);
+	const mountManager = new MountManager(eventBus, logger);
 	let bypassCounter = 0;
 	window.MetaDeck__SECRET = {
 		set bypassCounter(count: number)
@@ -131,8 +117,8 @@ export default definePlugin((serverAPI: ServerAPI) => {
 	const checkOnlineStatus = async () => {
 		try
 		{
-			const online = await serverAPI.fetchNoCors<{ body: string; status: number }>("https://example.com");
-			return online.success && online.result.status >= 200 && online.result.status < 300; // either true or false
+			const online = await fetchNoCors("https://example.com");
+			return online.ok && online.status >= 200 && online.status < 300; // either true or false
 		} catch (err)
 		{
 			return false; // definitely offline
@@ -348,12 +334,23 @@ export default definePlugin((serverAPI: ServerAPI) => {
 		}
 	})
 
+	const {inner, outer} = contextMenuPatch(LibraryContextMenu)
+
 	mountManager.addPatchMount({
 		async patch(): Promise<Patch>
 		{
-			return contextMenuPatch(LibraryContextMenu)
+			return outer!!
 		}
 	})
+
+	mountManager.addPatchMount({
+		async patch(): Promise<Patch>
+		{
+			return inner!!
+		}
+	})
+
+
 
 	mountManager.addPatchMount({
 		patch(): Patch
@@ -490,7 +487,7 @@ export default definePlugin((serverAPI: ServerAPI) => {
 	// 	return component1;
 	// });
 
-	mountManager.addMount(patchAppPage(serverAPI, metadataManager));
+	mountManager.addMount(patchAppPage(metadataManager));
 
 	mountManager.addPageMount("/metadeck/metadata/:appid", () => <ChangeMetadataComponent manager={metadataManager}/>)
 
@@ -501,26 +498,25 @@ export default definePlugin((serverAPI: ServerAPI) => {
 				Manager: metadataManager
 			}
 			eventBus.on("AppOverviewChanged", async ({appid}) => {
-				if (metadataManager.metadata !== {} && metadataManager.isReady(appid))
+				if (!Object.is(metadataManager.metadata, {}) && metadataManager.isReady(appid))
 					await metadataManager.fetchMetadataAsync(appid)
 			})
 			if (!await checkOnlineStatus()) await waitForOnline();
 			void (async () => {
-				void MetaDeckClient.init();
 				await metadataManager.init();
 			})();
 		},
 		unMount: async function (): Promise<void> {
 			delete window.MetaDeck;
 			await metadataManager.deinit();
-			MetaDeckClient.close();
 		}
 	});
 
 	const unregister = mountManager.register()
 
 	return {
-		title: <Title>MetaDeck</Title>,
+		name: name,
+		version,
 		content:
 			   <MetaDeckStateContextProvider metaDeckState={state}>
 				   <MetaDeckComponent/>

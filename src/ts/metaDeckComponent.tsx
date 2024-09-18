@@ -1,15 +1,10 @@
-import {
-	ButtonItem,
-	PanelSection,
-	PanelSectionRow, ProgressBarWithInfo,
-	SteamSpinner
-} from "decky-frontend-lib";
 import {useMetaDeckState} from "./hooks/metadataContext";
-import {VFC} from "react";
+import {FC} from "react";
 import {useTranslations} from "./useTranslations";
-import {FaSync} from "react-icons/all";
+import {ButtonItem, PanelSection, PanelSectionRow, ProgressBarWithInfo, SteamSpinner} from "@decky/ui";
+import {FaSync} from "react-icons/fa";
 
-export const MetaDeckComponent: VFC = () =>
+export const MetaDeckComponent: FC = () =>
 {
 	const t = useTranslations()
 	const {managers: {metadataManager}, loadingData, refresh} = useMetaDeckState()

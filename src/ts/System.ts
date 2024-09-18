@@ -1,10 +1,10 @@
 import {registerForLoginStateChange, waitForServicesInitialized} from "./LibraryInitializer";
-import {Patch, ServerAPI} from "decky-frontend-lib";
 import {ComponentType} from "react";
 import {RouteProps} from "react-router";
-import {yasdpl} from "../../lib/frontend";
-import Logger = yasdpl.Logger;
 import {EventBus} from "./events";
+import {routerHook} from "@decky/api";
+import {Patch} from "@decky/ui";
+import Logger from "./logger";
 
 export const systemClock: Clock = {
 	getTimeMs() {
@@ -38,11 +38,9 @@ export class MountManager implements AsyncMountable
 {
 	private mounts: Array<Mountable | AsyncMountable> = []
 	private logger: Logger;
-	private serverAPI: ServerAPI;
 	private eventBus: EventBus
 	private clock: Clock;
-	constructor(eventBus: EventBus, logger: Logger, serverAPI: ServerAPI, clock: Clock = systemClock) {
-		this.serverAPI = serverAPI;
+	constructor(eventBus: EventBus, logger: Logger, clock: Clock = systemClock) {
 		this.logger = logger;
 		this.eventBus = eventBus
 		this.clock = clock;
@@ -67,13 +65,12 @@ export class MountManager implements AsyncMountable
 	}
 
 	addPageMount(path: string, component: ComponentType, props?: Omit<RouteProps, 'path' | 'children'>): void {
-		let self = this;
 		this.addMount({
 			mount(): void {
-				self.serverAPI.routerHook.addRoute(path, component, props)
+				routerHook.addRoute(path, component, props)
 			},
 			unMount(): void {
-				self.serverAPI.routerHook.removeRoute(path)
+				routerHook.removeRoute(path)
 			}
 		})
 	}
@@ -101,7 +98,7 @@ export class MountManager implements AsyncMountable
 				   (async function () {
 					   if (await waitForServicesInitialized())
 					   {
-						   self.logger.info(`Initializing plugin for ${username}`);
+						   self.logger.log(`Initializing plugin for ${username}`);
 						   await self.mount()
 					   }
 				   })().catch(err => self.logger.error("Error while initializing plugin", err));
@@ -109,7 +106,7 @@ export class MountManager implements AsyncMountable
 			   function () {
 				   {
 					   (async function () {
-						   self.logger.info("Deinitializing plugin");
+						   self.logger.log("Deinitializing plugin");
 						   await self.unMount()
 					   })().catch(err => self.logger.error("Error while deinitializing plugin", err));
 				   }

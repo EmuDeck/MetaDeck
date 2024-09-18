@@ -1,5 +1,4 @@
-import {ServerAPI} from "decky-frontend-lib";
-import {createContext, FC, ReactNode, useContext, useEffect, useState} from "react";
+import {createContext, FC, PropsWithChildren, ReactNode, useContext, useEffect, useState} from "react";
 import {getAllNonSteamAppOverviews, MetadataManager} from "../MetadataManager";
 import {Settings} from "../settings";
 import {t} from "../useTranslations";
@@ -31,7 +30,7 @@ interface MetaDeckStateContext
 	loadingData: LoadingData,
 	managers: Managers,
 	apps: Promise<number[]>,
-	serverAPI: ServerAPI,
+	// serverAPI: ServerAPI,
 	settings: Settings,
 	refresh(): Promise<void>,
 }
@@ -127,12 +126,12 @@ export class MetaDeckState
 		}
 	}(this);
 
-	private readonly _serverAPI;
+	// private readonly _serverAPI;
 	private readonly _settings;
 
-	constructor(serverAPI: ServerAPI)
+	constructor()
 	{
-		this._serverAPI = serverAPI;
+		// this._serverAPI = serverAPI;
 		this._settings = new Settings(this);
 	}
 
@@ -148,7 +147,7 @@ export class MetaDeckState
 			loadingData: this.loadingData,
 			managers: this.managers,
 			apps: this.apps,
-			serverAPI: this.serverAPI,
+			// serverAPI: this.serverAPI,
 			settings: this.settings,
 			refresh: () => this.refresh(),
 		};
@@ -178,10 +177,10 @@ export class MetaDeckState
 		}).map(overview => overview.appid))();
 	}
 
-	get serverAPI(): ServerAPI
-	{
-		return this._serverAPI;
-	}
+	// get serverAPI(): ServerAPI
+	// {
+	// 	return this._serverAPI;
+	// }
 
 	get settings(): Settings
 	{
@@ -221,7 +220,7 @@ export const MetaDeckStateContext = createContext<MetaDeckStateContext>(null as 
 
 export const useMetaDeckState = () => useContext(MetaDeckStateContext);
 
-interface Props
+interface Props extends PropsWithChildren
 {
 	metaDeckState: MetaDeckState;
 }

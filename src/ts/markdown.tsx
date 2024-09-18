@@ -1,7 +1,7 @@
 import {FC, useRef} from "react";
-import {Focusable, Navigation} from "decky-frontend-lib";
 import {ReactMarkdown, ReactMarkdownOptions} from "react-markdown/lib/react-markdown";
 import remarkGfm from "remark-gfm";
+import {Focusable, Navigation} from "@decky/ui";
 
 interface MarkdownProps extends ReactMarkdownOptions
 {

@@ -1,14 +1,15 @@
-import {ServerAPI} from "decky-frontend-lib";
-import * as localforage from "localforage";
 import {closest, distance} from "fastest-levenshtein";
 import {
-	HTTPResult,
+	Developer,
 	MetadataCustomDictionary,
 	MetadataData,
 	MetadataDictionary,
 	MetadataIdDictionary,
+	Publisher,
 	SteamDeckCompatCategory,
-	VerifiedDBResults
+	StoreCategory,
+	VerifiedDBResults,
+	YesNo
 } from "./Interfaces";
 
 import {truncate} from "lodash-es";
@@ -17,26 +18,21 @@ import {MetaDeckState} from "./hooks/metadataContext";
 import {SteamAppOverview} from "./SteamTypes";
 import {format, t} from "./useTranslations";
 import {Markdown} from "./markdown";
-import {MetaDeckClient, yasdpl} from "../../lib/frontend";
-import Logger = yasdpl.Logger;
 import {Semaphore} from "async-mutex";
 import {stateTransaction} from "./util";
 import PromisePool from "es6-promise-pool";
-
-const database = "metadeck";
-
-localforage.config({
-	name: database,
-});
+import {fetchNoCors, toaster} from "@decky/api";
+import Logger from "./logger";
+import {Company, Game, GameMode, InvolvedCompany, MultiplayerMode} from "igdb-api-types";
 
 export async function getAllNonSteamAppIds(): Promise<number[]>
 {
-	return Array.from(collectionStore.deckDesktopApps.apps.keys());
+	return appStore.allApps.filter(e => e.app_type == 1073741824).map(e => e.appid);
 }
 
 export async function getAllNonSteamAppOverviews(): Promise<SteamAppOverview[]>
 {
-	return Array.from(collectionStore.deckDesktopApps.apps.values());
+	return appStore.allApps.filter(e => e.app_type == 1073741824)
 }
 
 export enum PlatformCategory
@@ -59,6 +55,9 @@ export interface Manager
 
 	refresh(): Promise<void>
 }
+const API_URL = "https://606b3zn5kl.execute-api.us-west-2.amazonaws.com/production/v4"
+const API_KEY = "MpkRQfGRMF8IOvsukMpDf9YYM3kiawLb9c3r23wR"
+
 
 export class MetadataManager implements Manager
 {
@@ -151,11 +150,6 @@ export class MetadataManager implements Manager
 		this.state.loadingData.fetching = value;
 	}
 
-	get serverAPI(): ServerAPI
-	{
-		return this.state.serverAPI;
-	}
-
 	private verifiedDB: VerifiedDBResults[] = [];
 	private _metadata: MetadataDictionary = {};
 	private metadata_id: MetadataIdDictionary = {};
@@ -167,7 +161,7 @@ export class MetadataManager implements Manager
 	constructor(state: MetaDeckState)
 	{
 		this._state = state;
-		this.logger = new Logger(MetaDeckClient, "MetadataManager");
+		this.logger = new Logger("MetadataManager");
 	}
 
 	private _state: MetaDeckState;
@@ -211,7 +205,7 @@ export class MetadataManager implements Manager
 		this.metadata = {};
 		await this.saveData();
 		this.logger.debug("Cache cleared", this.metadata);
-		this.serverAPI.toaster.toast({
+		toaster.toast({
 			title: t("title"),
 			body: t("cacheCleared")
 		})
@@ -263,9 +257,126 @@ export class MetadataManager implements Manager
 		return this.metadata_id[app_id];
 	}
 
+	private gameToMetadataData(game: Game): MetadataData
+	{
+		const gameDevs: Developer[] = []
+		const gamePubs: Publisher[] = []
+		const gameCats: StoreCategory[] = []
+
+		if (game.game_modes && game.game_modes.length > 0)
+		{
+			for (let gameMode of game.game_modes)
+			{
+				gameMode = gameMode as GameMode
+				if (gameMode.slug && gameMode.slug.length  > 0)
+				{
+					switch (gameMode.slug)
+					{
+						case "single-player":
+							gameCats.push(StoreCategory.SinglePlayer)
+							break;
+						case "multiplayer":
+							gameCats.push(StoreCategory.MultiPlayer)
+							break;
+					}
+				}
+			}
+		}
+
+		if (game.multiplayer_modes && game.multiplayer_modes.length > 0)
+		{
+			for (let multiplayerMode of game.multiplayer_modes)
+			{
+				multiplayerMode = multiplayerMode as MultiplayerMode
+				if (multiplayerMode.onlinecoop) gameCats.push(StoreCategory.OnlineCoOp)
+				if (multiplayerMode.offlinecoop) gameCats.push(StoreCategory.LocalCoOp)
+				if (multiplayerMode.splitscreen || multiplayerMode.splitscreenonline) gameCats.push(StoreCategory.SplitScreen)
+				if (multiplayerMode.onlinecoop || multiplayerMode.splitscreenonline) gameCats.push(StoreCategory.OnlineMultiPlayer)
+				if (multiplayerMode.offlinecoop || multiplayerMode.lancoop || multiplayerMode.splitscreen) gameCats.push(StoreCategory.LocalMultiPlayer)
+			}
+		}
+
+		if (game.involved_companies && game.involved_companies.length > 0)
+		{
+			for (let involvedCompany of game.involved_companies)
+			{
+				involvedCompany = involvedCompany as InvolvedCompany
+				if (involvedCompany.company
+					   && (involvedCompany.company as Company).name
+					   && (involvedCompany.company as Company).name!!.length > 0
+					   && (involvedCompany.company as Company).url
+					   && (involvedCompany.company as Company).url!!.length > 0
+				)
+				{
+					if (involvedCompany.developer)
+					{
+						gameDevs.push({
+							name: (involvedCompany.company as Company).name!!,
+							url: (involvedCompany.company as Company).url!!
+						})
+					}
+
+					if (involvedCompany.publisher)
+					{
+						gamePubs.push({
+							name: (involvedCompany.company as Company).name!!,
+							url: (involvedCompany.company as Company).url!!
+						})
+					}
+				}
+			}
+		}
+
+		const compatCategoryResult = this.verifiedDB.find(result => result.Game == closest(game.name ?? "", this.verifiedDB.map(e => e.Game)))
+		this.logger.debug("compatdata: ", compatCategoryResult)
+		let compatCategory = SteamDeckCompatCategory.UNKNOWN
+		if (compatCategoryResult)
+		{
+			if (compatCategoryResult.Boots == YesNo.YES && compatCategoryResult.Playable == YesNo.YES)
+				compatCategory = SteamDeckCompatCategory.VERIFIED
+			else if (compatCategoryResult.Boots == YesNo.YES && (compatCategoryResult.Playable == YesNo.NO || compatCategoryResult.Playable == YesNo.PARTIAL))
+				compatCategory = SteamDeckCompatCategory.PLAYABLE
+			else
+				compatCategory = SteamDeckCompatCategory.UNSUPPORTED
+		}
+		return {
+			title: game.name ?? "No Title",
+			id: game.id,
+			description: game.summary ?? "No Description",
+			developers: gameDevs,
+			publishers: gamePubs,
+			release_date: game.first_release_date,
+			compat_category: compatCategory,
+			compat_notes: compatCategoryResult?.Notes,
+			store_categories:gameCats,
+		}
+	}
+
+	private async search(title: string): Promise<MetadataData[]>
+	{
+		const response = (await fetchNoCors(`${API_URL}/games`, {
+			method: "POST",
+			headers: {
+				"Accept": "application/json",
+				"x-api-key": API_KEY
+			},
+			body: `search \"${title}\"; limit 20; fields *, involved_companies.*, involved_companies.company.*, game_modes.*, multiplayer_modes.*, platforms.*;`
+		}));
+		if (response.ok)
+		{
+			let games: Game[] = await response.json()
+			games = games.sort((a, b) => a.id - b.id)
+			this.logger.debug("Games", games)
+			return games.map<MetadataData>(game => this.gameToMetadataData(game))
+		}
+		else throw Error(`Could not find metadata id "${title}"`);
+	}
+
+	// private search = callable<[string], MetadataData[]>("search")
+
 	public async getAllMetadataForGame(app_id: number): Promise<{ [index: number]: MetadataData } | undefined>
 	{
-		return new Promise<{ [index: number]: MetadataData } | undefined>(async (resolve, reject) => {
+		return new Promise<{ [index: number]: MetadataData } | undefined>(async (resolve) => {
 
 			const display_name = appStore.GetAppOverviewByAppID(app_id)?.display_name;
 
@@ -278,22 +389,25 @@ export class MetadataManager implements Manager
 			// 	},
 			// 	body: `search \"${display_name}\"; fields *, involved_companies.*, involved_companies.company.*, game_modes.*, multiplayer_modes.*, platforms.*;`
 			// }));
-			const response = (await fetch(`https://api.emudeck.com/metadeck/api/search`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify(
-					   {
-						   title: display_name,
-					   }
-				)
-			}))
-			this.logger.debug(response)
-
-			if (response.ok)
-			{
-				const results = await response.json() as MetadataData[];
+			// const response = (await fetch(`https://api.emudeck.com/metadeck/api/search`, {
+			// 	method: "POST",
+			// 	headers: {
+			// 		"Content-Type": "application/json"
+			// 	},
+			// 	body: JSON.stringify(
+			// 		   {
+			// 			   title: display_name,
+			// 		   }
+			// 	)
+			// }))
+			// this.logger.debug(response)
+			//
+			//
+			//
+			// if (response.ok)
+			// {
+				// const results = await response.json() as MetadataData[];
+				const results = await this.search(display_name) as MetadataData[];
 				if (results.length > 0)
 				{
 					// const closest_name = closest(this.normalize(display_name), results.map(value => value.name) as string[])
@@ -308,7 +422,7 @@ export class MetadataManager implements Manager
 					this.logger.debug(ret);
 					resolve(ret);
 				} else resolve(undefined);
-			} else reject(new Error(`HTTP ERROR: ${response.status}`));
+			// } else reject(new Error(`HTTP ERROR: ${response.status}`));
 		})
 	}
 
@@ -317,9 +431,9 @@ export class MetadataManager implements Manager
 	public async getMetadataForGame(app_id: number): Promise<MetadataData | undefined>
 	{
 		this.logger.debug(`Fetching metadata for game ${app_id}`)
-		if (this.metadata[app_id] || this.metadata_custom[app_id])
+		if (this.metadata[app_id])
 			return this.metadata[app_id];
-		return new Promise<MetadataData | undefined>(async (resolve, reject) => {
+		return new Promise<MetadataData | undefined>(async (resolve) => {
 
 			const display_name = appStore.GetAppOverviewByAppID(app_id)?.display_name;
 			// const auth = await authenticate_igdb(this.serverAPI, this.client_id, this.client_secret);
@@ -340,17 +454,17 @@ export class MetadataManager implements Manager
 			// 				 }
 			// 	)
 			// }))
-			const response = (await fetch(`https://api.emudeck.com/metadeck/api/search`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify(
-							 {
-								 title: display_name,
-							 }
-				)
-			}))
+			// const response = (await fetch(`https://api.emudeck.com/metadeck/api/search`, {
+			// 	method: "POST",
+			// 	headers: {
+			// 		"Content-Type": "application/json"
+			// 	},
+			// 	body: JSON.stringify(
+			// 				 {
+			// 					 title: display_name,
+			// 				 }
+			// 	)
+			// }))
 			// const response = (await this.serverAPI.fetchNoCors<HTTPResult>("https://api.igdb.com/v4/games", {
 			// 	method: "POST",
 			// 	headers: {
@@ -360,10 +474,10 @@ export class MetadataManager implements Manager
 			// 	},
 			// 	body: `${data_id ? `where id = ${data_id}` : `search \"${display_name}\"`}; fields *, involved_companies.*, involved_companies.company.*, game_modes.*, multiplayer_modes.*, platforms.*;`
 			// }));
-			if (response.ok)
-			{
-				this.logger.debug("response", response);
-				const results = await response.json() as MetadataData[];
+			// if (response.ok)
+			// {
+			// 	this.logger.debug("response", response);
+				const results = await this.search(display_name) as MetadataData[];
 				if (results.length > 0)
 				{
 					this.logger.debug("results", results);
@@ -385,14 +499,12 @@ export class MetadataManager implements Manager
 					{
 						games = results.filter(value => value.id === data_id)
 					}
-					for (let game of games)
-					{
-						this.logger.debug(game);
-						resolve(game);
-					}
+					const game = games.pop()
+					this.logger.debug(game);
+					resolve(game)
 
 				} else resolve(undefined);
-			} else reject(new Error(`HTTP ERROR: ${response.status}`));
+			// } else reject(new Error(`HTTP ERROR: ${response.status}`));
 		})
 	}
 
@@ -418,7 +530,7 @@ export class MetadataManager implements Manager
 		{
 			this.logger.debug(`Loading cached metadata for ${app_id}: `, this.metadata[app_id]);
 		}
-		appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = this.metadata[app_id]?.compat_category ?? SteamDeckCompatCategory.UNKNOWN
+		appStore.GetAppOverviewByAppID(app_id).steam_hw_compat_category_packed = this.metadata[app_id]?.compat_category ?? SteamDeckCompatCategory.UNKNOWN
 
 		// appStore.GetAppOverviewByAppID(app_id).steam_deck_compat_category = SteamDeckCompatCategory.VERIFIED
 		this.metadata[app_id]?.store_categories?.forEach(category => appStore.GetAppOverviewByAppID(app_id).m_setStoreCategories.add(category))
@@ -462,15 +574,14 @@ export class MetadataManager implements Manager
 
 	async getVerifiedDB(): Promise<void>
 	{
-		const response = (await this.serverAPI.fetchNoCors<HTTPResult>("https://opensheet.elk.sh/1fRqvAh_wW8Ho_8i966CCSBgPJ2R_SuDFIvvKsQCv05w/Database", {
-			method: "GET"
-		}));
+		this.logger.debug("Getting Verified DB");
+		const response = (await fetch("https://opensheet.elk.sh/1fRqvAh_wW8Ho_8i966CCSBgPJ2R_SuDFIvvKsQCv05w/Database"));
 		this.logger.debug(`Verified DB: ${JSON.stringify(response, undefined, "\t")}`)
-		if (response.success)
+		if (response.ok)
 		{
-			if (response.result.status === 200)
+			if (response.status === 200)
 			{
-				this.verifiedDB = JSON.parse(response.result.body);
+				this.verifiedDB = await response.json()
 				this.logger.debug(`Verified DB Parsed:`, this.verifiedDB);
 			}
 		}
@@ -543,6 +654,7 @@ export class MetadataManager implements Manager
 			// 	return 0;
 			// }).map(overview => overview.appid))
 			// await this.loadData();
+			await this.getVerifiedDB()
 			this.logger.debug("metadata", this.metadata);
 			await this.refresh_metadata_for_apps((await getAllNonSteamAppIds()))
 			this.logger.debug("refreshed metadata", this.metadata);
@@ -553,8 +665,6 @@ export class MetadataManager implements Manager
 	async init(): Promise<void>
 	{
 		await this.loadData();
-		await this.getVerifiedDB();
-		// const fetchMetadataDebounced = debounce((app_id: number) => this.fetchMetadata(app_id), 500, {leading: true});
 		await this.refresh();
 	}
 

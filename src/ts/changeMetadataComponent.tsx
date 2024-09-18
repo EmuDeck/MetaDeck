@@ -1,13 +1,12 @@
-import {useEffect, useState, VFC} from "react";
+import {FC, Fragment, useEffect, useState} from "react";
 import {MetadataManager} from "./MetadataManager";
-import {ButtonItem, DropdownItem, Navigation, PanelSection, SteamSpinner, useParams} from "decky-frontend-lib";
 import {MetadataData} from "./Interfaces";
 import {useTranslations} from "./useTranslations";
 import {Markdown} from "./markdown";
-import React from "react";
+import {ButtonItem, DropdownItem, Navigation, PanelSection, SteamSpinner, useParams} from "@decky/ui";
 
 export const
-	   ChangeMetadataComponent: VFC<{ manager: MetadataManager }> = ({manager}) =>
+	   ChangeMetadataComponent: FC<{ manager: MetadataManager }> = ({manager}) =>
 {
 	const {appid} = useParams<{ appid: string }>()
 	const app_id = +appid;
@@ -44,7 +43,7 @@ export const
 			}}>
 				<PanelSection title={t("changeMetadata")}>
 					{loaded ?
-							<>
+							<Fragment>
 								<DropdownItem rgOptions={
 									metadata ? [...Object.values(metadata).map(value =>
 													{
@@ -98,7 +97,7 @@ ${selected.description}
 								}}>
 									{t("save")}
 								</ButtonItem>
-							</>:<SteamSpinner/>
+							</Fragment>:<SteamSpinner/>
 					}
 				</PanelSection>
 			</div>

@@ -1,12 +1,3 @@
-import {ServerAPI} from "decky-frontend-lib";
-import {MetadataManager} from "./MetadataManager";
-
-export interface AppProps
-{
-	serverAPI: ServerAPI,
-	metadataManager: () => MetadataManager
-}
-
 export interface MetadataData
 {
 	title: string,
@@ -25,12 +16,6 @@ export type MetadataDictionary = Record<number, MetadataData>
 export type MetadataIdDictionary = Record<number, number>
 
 export type MetadataCustomDictionary = Record<number, boolean>
-
-export interface HTTPResult
-{
-	body: string,
-	status: number
-}
 
 export interface Game
 {

@@ -1,9 +1,8 @@
-import {findModuleChild} from "decky-frontend-lib";
 import {SteamAppOverview} from "./SteamTypes";
 import {Mountable, systemClock} from "./System";
 import Emittery, {ListenerChangedData} from "emittery";
-import {MetaDeckClient, yasdpl} from "../../lib/frontend";
-import Logger = yasdpl.Logger;
+import {findModuleChild} from "@decky/ui";
+import Logger from "./logger";
 
 const CAppOverview_Change: {
 	deserializeBinary(e: any): {
@@ -45,7 +44,7 @@ export class EventBus extends Emittery<Events>
 	constructor()
 	{
 		super();
-		this.logger = new Logger(MetaDeckClient, "EventBus")
+		this.logger = new Logger("EventBus")
 		this.register()
 	}
 

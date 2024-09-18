@@ -1,120 +1,52 @@
 import asyncio
+import json
 import logging
 import os
 import pathlib
 import subprocess
 import sys
 
-import decky_plugin
-
-logging.basicConfig(
-    filename="/tmp/metadeck.log",
-    format='[MetaDeck] %(asctime)s %(levelname)s %(message)s',
-    filemode='w+',
-    force=True
-)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)  # can be changed to logging.DEBUG for debugging issues
-
-HOME_DIR = str(pathlib.Path(os.getcwd()).parent.parent.resolve())
-PARENT_DIR = str(pathlib.Path(__file__).parent.resolve())
+import decky
 
 
 class Plugin:
-    # language: str = None
-    # metadata_id: Dict[int, int] = None
-    # metadata: Dict[str, Dict[str, Any]] = None
-    # settings: SettingsManager
-    # packet_size: int = 1000
-    # length: int = 0
-    # buffer: str = ""
-    backend_proc = None
+	config: dict
 
-    # async def start_write_config(self, length, packet_size=1000) -> None:
-    # 	Plugin.buffer = ""
-    # 	Plugin.length = length
-    # 	Plugin.packet_size = packet_size
-    #
-    # async def write_config(self, index, data) -> None:
-    # 	Plugin.buffer += data
-    # 	if index >= Plugin.length - 1:
-    # 		Plugin.length = 0
-    # 		config = json.loads(Plugin.buffer)
-    # 		Plugin.buffer = ""
-    # 		with open(os.path.join(decky_plugin.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "w") as f:
-    # 			json.dump(config, f, indent="\t")
-    #
-    # async def start_read_config(self, packet_size=1000) -> int:
-    # 	Plugin.buffer = ""
-    # 	Plugin.length = 0
-    # 	Plugin.packet_size = packet_size
-    # 	with open(os.path.join(decky_plugin.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "r") as f:
-    # 		config = json.load(f)
-    # 		Plugin.buffer = json.dumps(config, indent="\t")
-    # 		Plugin.length = math.ceil(len(Plugin.buffer) / float(Plugin.packet_size))
-    # 		return Plugin.length
-    #
-    # async def read_config(self, index) -> str:
-    # 	if index < Plugin.length - 1:
-    # 		return Plugin.buffer[index * Plugin.packet_size: (index + 1) * Plugin.packet_size]
-    # 	else:
-    # 		Plugin.length = 0
-    # 		config = Plugin.buffer[index * Plugin.packet_size:]
-    # 		Plugin.buffer = ""
-    # 		return config
+	async def _main(self) -> None:
+		"""
+		Load function
+		"""
+		decky.logger.info("Starting MetaDeck")
 
-    async def _main(self) -> None:
-        """
-          Load function
-          """
-        # Plugin.settings = SettingsManager("metadeck")
+	async def _unload(self) -> None:
+		"""
+		Unload function
+		"""
+		decky.logger.info("Stopping MetaDeck")
 
-        # await Plugin.read(self)
-        # if not os.path.exists(os.path.join(decky_plugin.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")):
-        # 	with open(os.path.join(decky_plugin.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "w") as f:
-        # 		json.dump({
-        # 			"metadata_id": {},
-        # 			"metadata_custom": {},
-        # 			"metadata": {}
-        # 		}, f)
-        print("MetaDeck starting...", file=sys.stdout)
-        env_proc = dict(os.environ)
-        if "LD_LIBRARY_PATH" in env_proc:
-            env_proc["LD_LIBRARY_PATH"] += ":" + PARENT_DIR + "/bin"
-        else:
-            env_proc["LD_LIBRARY_PATH"] = ":" + PARENT_DIR + "/bin"
+# await Plugin.commit(self)
+	async def _migration(self):
+		decky.migrate_settings(
+			os.path.join(decky.DECKY_HOME, "settings", "metadeck.json"))
+		if os.path.exists(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "metadeck.json")):
+			os.rename(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "metadeck.json"),
+					os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"))
 
-        if os.path.exists(f"{PARENT_DIR}/bin/backend.jar") and os.path.exists(f"{PARENT_DIR}/bin/jvm"):
-             self.backend_proc = subprocess.Popen(
-                  [f"{PARENT_DIR}/bin/jvm/bin/java", f"-agentlib:native-image-agent=config-output-dir={PARENT_DIR}/dump", "-jar", f"{PARENT_DIR}/bin/backend.jar"],
-                  env=env_proc)
-        else:
-             self.backend_proc = subprocess.Popen(
-                 [PARENT_DIR + "/bin/backend"],
-                 env=env_proc)
-        while True:
-            await asyncio.sleep(1)
+	async def read(self) -> dict:
+		if not os.path.exists(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")):
+			with open(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "w") as f:
+				json.dump({
+					"metadata_id": {},
+					"metadata_custom": {},
+					"metadata": {}
+				}, f)
+		with open(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "r") as f:
+			return json.load(f)
 
-    async def _unload(self) -> None:
-        """
-          Unload function
-          """
-        print("MetaDeck unloading...", file=sys.stdout)
-        if self.backend_proc is not None:
-            self.backend_proc.terminate()
-            try:
-                self.backend_proc.wait(timeout=5)  # 5 seconds timeout
-            except subprocess.TimeoutExpired:
-                self.backend_proc.kill()
-            self.backend_proc = None
+	async def write(self, data: dict) -> None:
+		with open(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "w") as f:
+			json.dump(data, f)
 
-    # await Plugin.commit(self)
-    async def _migration(self):
-        decky_plugin.migrate_settings(
-            os.path.join(decky_plugin.DECKY_HOME, "settings", "metadeck.json"))
-        if os.path.exists(os.path.join(decky_plugin.DECKY_PLUGIN_SETTINGS_DIR, "metadeck.json")):
-            os.rename(os.path.join(decky_plugin.DECKY_PLUGIN_SETTINGS_DIR, "metadeck.json"),
-                      os.path.join(decky_plugin.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"))
 
 # async def get_metadata_for_key(self, key: int) -> Dict[str, Any] | None:
 # 	"""

@@ -17,10 +17,10 @@
     "noImplicitThis": true,
     "noImplicitAny": true,
     "strict": true,
-    "suppressImplicitAnyIndexErrors": true,
     "allowSyntheticDefaultImports": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+	  "rootDir": "src/ts"
   },
-  "include": ["src/ts"],
+  "include": ["**/*.ts*"],
   "exclude": ["node_modules"]
 }
