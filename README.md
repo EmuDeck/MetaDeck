@@ -2,6 +2,7 @@
 # MetaDeck
 
 [![Crowdin](https://badges.crowdin.net/metadeck/localized.svg)](https://crowdin.com/project/metadeck)
+![Store Downloads](https://img.shields.io/badge/dynamic/json?url=https://plugins.deckbrew.xyz/plugins?query=MetaDeck&query=$[:1].downloads&suffix= installs&label=decky)
 
 Decky Loader Steam Deck Plugin for viewing metadata for non steam games from IGDB inside your game's app page just like with steam games
 
