@@ -10,6 +10,7 @@ import {
 	Navigation,
 	Patch
 } from "@decky/ui";
+import {AsyncMountable} from "./System";
 
 const MetaDeckChangeMetadata: FC<{ appId: number }> = ({appId}) =>
 {
@@ -47,68 +48,68 @@ const spliceChangeMetadata = (children: any[], appid: number) => {
  * @param LibraryContextMenu The game context menu.
  * @returns A patch to remove when the plugin dismounts.
  */
-const contextMenuPatch = (LibraryContextMenu: any) => {
+const contextMenuPatch = (LibraryContextMenu: any): AsyncMountable => {
 	const patches: {
 		outer?: Patch
 		inner?: Patch
-		unpatch: () => void
-	} = {
-		unpatch: () => {
-			return null
+	} = {}
+	return {
+		async mount(): Promise<void>
+		{
+			patches.outer = afterPatch(
+				   LibraryContextMenu.prototype,
+				   'render',
+				   (_: Record<string, unknown>[], component: any) => {
+					   const appid: number = component._owner.pendingProps.overview.appid
+
+					   if (!patches.inner) {
+						   patches.inner = afterPatch(
+								 component.type.prototype,
+								 'shouldComponentUpdate',
+								 ([nextProps]: any, shouldUpdate: any) => {
+									 console.log(nextProps)
+									 if (Array.isArray(nextProps.children))
+									 {
+										 const gtmIdx = nextProps.children.findIndex(
+											    (x: any) => x?.key === 'metadeck-change-metadata'
+										 )
+										 if (gtmIdx != -1) nextProps.children.splice(gtmIdx, 1)
+
+										 if (shouldUpdate === true)
+										 {
+											 let updatedAppid: number = appid
+											 // find the first menu component that has the correct appid assigned to _owner
+											 const parentOverview = nextProps.children.find(
+												    (x: any) =>
+														  x?._owner?.pendingProps?.overview?.appid &&
+														  x._owner.pendingProps.overview.appid !== appid
+											 )
+											 // if found then use that appid
+											 if (parentOverview)
+											 {
+												 updatedAppid = parentOverview._owner.pendingProps.overview.appid
+											 }
+											 spliceChangeMetadata(nextProps.children, updatedAppid)
+										 }
+									 }
+
+									 return shouldUpdate
+								 }
+						   )
+					   } else {
+						   spliceChangeMetadata(component.props.children, appid)
+					   }
+
+					   return component
+				   }
+			)
+		},
+		async dismount(): Promise<void>
+		{
+			patches.outer?.unpatch()
+			patches.inner?.unpatch()
 		}
 	}
-	patches.outer = afterPatch(
-		   LibraryContextMenu.prototype,
-		   'render',
-		   (_: Record<string, unknown>[], component: any) => {
-			   const appid: number = component._owner.pendingProps.overview.appid
-
-			   if (!patches.inner) {
-				   patches.inner = afterPatch(
-						 component.type.prototype,
-						 'shouldComponentUpdate',
-						 ([nextProps]: any, shouldUpdate: any) => {
-							 console.log(nextProps)
-							 if (Array.isArray(nextProps.children))
-							 {
-								 const gtmIdx = nextProps.children.findIndex(
-									    (x: any) => x?.key === 'metadeck-change-metadata'
-								 )
-								 if (gtmIdx != -1) nextProps.children.splice(gtmIdx, 1)
-
-								 if (shouldUpdate === true)
-								 {
-									 let updatedAppid: number = appid
-									 // find the first menu component that has the correct appid assigned to _owner
-									 const parentOverview = nextProps.children.find(
-										    (x: any) =>
-												  x?._owner?.pendingProps?.overview?.appid &&
-												  x._owner.pendingProps.overview.appid !== appid
-									 )
-									 // if found then use that appid
-									 if (parentOverview)
-									 {
-										 updatedAppid = parentOverview._owner.pendingProps.overview.appid
-									 }
-									 spliceChangeMetadata(nextProps.children, updatedAppid)
-								 }
-							 }
-
-							 return shouldUpdate
-						 }
-				   )
-			   } else {
-				   spliceChangeMetadata(component.props.children, appid)
-			   }
-
-			   return component
-		   }
-	)
-	patches.unpatch = () => {
-		patches.outer?.unpatch()
-		patches.inner?.unpatch()
-	}
-	return patches
 }
 
 /**

@@ -1,12 +1,14 @@
 import {defineConfig} from "rollup";
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
+import styles from "rollup-plugin-styles";
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import replace from '@rollup/plugin-replace';
 import typescript from '@rollup/plugin-typescript';
 import del from 'rollup-plugin-delete';
 import importAssets from 'rollup-plugin-import-assets';
 import externalGlobals from 'rollup-plugin-external-globals';
+import svgr from '@svgr/rollup'
 import manifest from "./plugin.json" assert { type: 'json' }
 import pkg from "./package.json" assert { type: 'json' }
 
@@ -16,6 +18,8 @@ export default defineConfig({
 		del({ targets: './dist/*', force: true }),
 		typescript(),
 		json(),
+		styles(),
+		svgr({icon: true}),
 		commonjs(),
 		nodeResolve({
 			browser: true

@@ -1,6 +1,6 @@
 declare module "*.svg" {
-  const content: string;
-  export default content;
+  import {FC} from "react";
+	export const ReactComponent: FC;
 }
 
 declare module "*.png" {
@@ -13,7 +13,7 @@ declare module "*.jpg" {
   export default content;
 }
 
-declare module '*.scss' {
+declare module '*.css' {
 	const content: string;
 	export default content;
 }

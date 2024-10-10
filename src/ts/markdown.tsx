@@ -29,7 +29,10 @@ export const Markdown: FC<MarkdownProps> = (props) =>
 												onOKButton={() =>
 												{
 													props.onDismiss?.();
-													Navigation.NavigateToExternalWeb(aRef.current!.href);
+													if (aRef.current!.href.startsWith("http://") || aRef.current!.href.startsWith("https://"))
+														Navigation.NavigateToExternalWeb(aRef.current!.href);
+													else
+														Navigation.Navigate(aRef.current!.href)
 												}}
 												style={{display: 'inline'}}
 										>
