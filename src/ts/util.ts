@@ -50,3 +50,8 @@ export function closestWithLimit(limit: number, str: string, arr: string[]): str
 	const newArr = arr.filter(value => distance(str, value) < limit)
 	return newArr.length > 0 ? closest(str, newArr) : undefined
 }
+
+export function distanceWithLimit(limit: number, str: string, arr: string[]): string[]
+{
+	return arr.filter(value => distance(str, value) < limit)
+}

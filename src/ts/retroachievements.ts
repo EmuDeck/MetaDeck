@@ -31,6 +31,11 @@ export const isRetroAchievementsGame: (appId: number) => Promise<boolean> = asyn
 
 }
 
+export const isAchievementsGame: (appId: number) => Promise<boolean> = async (appId) =>
+{
+	return await isRetroAchievementsGame(appId)
+}
+
 export const isFlatpakGame: (appId: number) => Promise<boolean> = async (appId) =>
 {
 	const details = await getAppDetails(appId);
@@ -43,6 +48,60 @@ export const isFlatpakGame: (appId: number) => Promise<boolean> = async (appId) 
 
 	return launchCommand.includes("flatpak");
 }
+
+export const isJunkStoreGame: (appId: number) => Promise<boolean> = async (appId) =>
+{
+	const details = await getAppDetails(appId);
+
+	let launchCommand: string
+	if (details?.strShortcutLaunchOptions?.includes("%command%"))
+		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
+	else
+		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
+
+	return launchCommand.includes("epic-launcher.sh") || launchCommand.includes("gog-launcher.sh")
+}
+
+export const isNSLGame: (appId: number) => Promise<boolean> = async (appId) =>
+{
+	const details = await getAppDetails(appId);
+
+	let launchCommand: string
+	if (details?.strShortcutLaunchOptions?.includes("%command%"))
+		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
+	else
+		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
+
+	return launchCommand.includes("com.epicgames.launcher://apps/") || launchCommand.includes("/command=runGame /gameId=")
+}
+
+export const isHeroicGame: (appId: number) => Promise<boolean> = async (appId) =>
+{
+	const details = await getAppDetails(appId);
+
+	let launchCommand: string
+	if (details?.strShortcutLaunchOptions?.includes("%command%"))
+		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
+	else
+		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
+
+	return launchCommand.includes("heroic://launch/legendary/") || launchCommand.includes("heroic://launch/gog/")
+}
+
+export const isLutrisGame: (appId: number) => Promise<boolean> = async (_appId) =>
+{
+	// const details = await getAppDetails(appId);
+	//
+	// let launchCommand: string
+	// if (details?.strShortcutLaunchOptions?.includes("%command%"))
+	// 	launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
+	// else
+	// 	launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
+
+	return false;
+}
+
+
 
 export enum RA_SYSTEM
 {

@@ -12,11 +12,11 @@ import {Company, Game, GameMode, InvolvedCompany, MultiplayerMode} from "igdb-ap
 import Logger from "../../../logger";
 import {FC, Fragment, useState} from "react";
 import {PanelSectionRow, SliderField} from "@decky/ui";
-import {closestWithLimit} from "../../../util";
+import {closestWithLimit, distanceWithLimit} from "../../../util";
 import {Entry, IdOverrideComponent} from "../../IdOverrideComponent";
 import {fetchNoCors} from "@decky/api";
 import {t} from "../../../useTranslations";
-import {isEmulatedGame, isFlatpakGame, isRetroAchievementsGame} from "../../../retroachievements";
+import {isEmulatedGame, isFlatpakGame} from "../../../retroachievements";
 
 export interface IGDBMetadataProviderConfig extends ProviderConfig
 {
@@ -70,9 +70,15 @@ export class IGDBMetadataProvider extends MetadataProvider
 		return this.throttle(() => this.getMetadataForGame(appId));
 	}
 
-	async test(_appId: number): Promise<boolean>
+	async test(appId: number): Promise<boolean>
 	{
-		return true;
+		if (this.overrides[appId] == 0)
+			return false;
+		const display_name = appStore.GetAppOverviewByAppID(appId)?.display_name;
+		const results = await this.throttle(() => this.search(display_name));
+		const names = results.map(value => value.title);
+		const closest_names = distanceWithLimit(this.fuzziness, display_name, names);
+		return closest_names.length > 0;
 	}
 
 	public normalize(str: string): string
@@ -219,7 +225,8 @@ export class IGDBMetadataProvider extends MetadataProvider
 			let games: MetadataData[];
 			if (data_id === undefined)
 			{
-				const closest_name = closestWithLimit(this.fuzziness, display_name, results.map(value => value.title) as string[])
+				const names = results.map(value => value.title);
+				const closest_name = closestWithLimit(this.fuzziness, display_name, names)
 				this.logger.debug(closest_name, results.map(value => value.title))
 				const games1 = results.filter(value => value.title === closest_name)
 				this.logger.debug("Games: ", games1)
@@ -236,12 +243,10 @@ export class IGDBMetadataProvider extends MetadataProvider
 			const game = games.reverse().pop();
 			if (game)
 			{
+				// if (await isAchievementsGame(appId))
+				// 	game.store_categories.push(StoreCategory.Achievements)
 				if (await isEmulatedGame(appId))
-				{
 					game.store_categories.push(CustomStoreCategory.EmuDeck)
-					if (await isRetroAchievementsGame(appId))
-						game.store_categories.push(StoreCategory.Achievements)
-				}
 				if (await isFlatpakGame(appId))
 					game.store_categories.push(CustomStoreCategory.Flatpak);
 			}
@@ -258,11 +263,14 @@ export class IGDBMetadataProvider extends MetadataProvider
 		const results = await this.search(display_name);
 		if (results.length > 0)
 		{
+			const names = results.map(value => value.title);
+			const closest_names = distanceWithLimit(this.fuzziness, display_name, names);
+			const games = results.filter(value => closest_names.includes(value.title));
 			// const closest_name = closest(this.normalize(display_name), results.map(value => value.name) as string[])
 			// const games = results.filter(value => (distance(display_name, value.title) < this.fuzziness))
 
 			let ret: Record<number, MetadataData> = {};
-			for (let game of results)
+			for (let game of games)
 			{
 				ret[+game.id] = game;
 			}
@@ -303,7 +311,7 @@ export class IGDBMetadataProvider extends MetadataProvider
 							 }}
 							 resultsForApp={async (appId) => {
 								 const ret: Record<number, Entry<number>> = {}
-								 for (const [id, value] of Object.entries(await this.getAllMetadataForGame(appId) ?? []))
+								 for (const [id, value] of Object.entries(await this.throttle(() => this.getAllMetadataForGame(appId))?? []))
 								 {
 									 ret[+id] = {
 										 label: appStore.GetAppOverviewByAppID(appId).display_name,

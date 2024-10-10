@@ -40,7 +40,11 @@ import {routePatch} from "../../RoutePatches";
 // import {addStyle, removeStyle} from "../../styleInjector";
 import Logger from "../../logger";
 import {callable} from "@decky/api";
-import {isEmulatedGame, isFlatpakGame, isRetroAchievementsGame, romRegex} from "../../retroachievements";
+import {
+	isEmulatedGame,
+	isFlatpakGame, isHeroicGame, isJunkStoreGame, isLutrisGame, isNSLGame,
+	romRegex
+} from "../../retroachievements";
 import {CustomFeature} from "./CustomFeature";
 
 // import mdx from "@mdxeditor/editor/style.css";
@@ -883,14 +887,21 @@ export class MetadataModule extends Module<MetadataModule, MetadataProvider, Met
 	{
 		const overview = appStore.GetAppOverviewByAppID(appId);
 		const cats: (StoreCategory | CustomStoreCategory)[] = [CustomStoreCategory.NonSteam];
+		// if (await isAchievementsGame(appId))
+		// 	cats.push(StoreCategory.Achievements);
 		if (await isEmulatedGame(appId))
-		{
-			cats.push(CustomStoreCategory.EmuDeck)
-			if (await isRetroAchievementsGame(appId))
-				cats.push(StoreCategory.Achievements)
-		}
+			cats.push(CustomStoreCategory.EmuDeck);
+		if (await isJunkStoreGame(appId))
+			cats.push(CustomStoreCategory.JunkStore);
+		if (await isNSLGame(appId))
+			cats.push(CustomStoreCategory.NSL);
+		if (await isHeroicGame(appId))
+			cats.push(CustomStoreCategory.Heroic);
+		if (await isLutrisGame(appId))
+			cats.push(CustomStoreCategory.Lutris);
 		if (await isFlatpakGame(appId))
-			cats.push(CustomStoreCategory.Flatpak)
+			cats.push(CustomStoreCategory.Flatpak);
+
 		return {
 			title: overview.display_name,
 			id: 0,

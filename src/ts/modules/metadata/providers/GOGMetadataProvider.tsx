@@ -6,6 +6,7 @@ import {GamesDBResult, removeAfterAndIncluding, removeBeforeAndIncluding} from "
 import {FC} from "react";
 import {fetchNoCors} from "@decky/api";
 import {t} from "../../../useTranslations";
+import {isFlatpakGame, isHeroicGame, isJunkStoreGame, isLutrisGame, isNSLGame} from "../../../retroachievements";
 
 export interface GOGMetadataProviderConfig extends ProviderConfig
 {
@@ -65,13 +66,15 @@ export class GOGMetadataProvider extends MetadataProvider
 				if (modes.includes("single-player"))
 					cats.push(StoreCategory.SinglePlayer)
 
-				if (launchCommand.includes("gog-launcher.sh"))
+				if (await isJunkStoreGame(appId))
 					cats.push(CustomStoreCategory.JunkStore);
-				if (launchCommand.includes("/command=runGame /gameId="))
+				if (await isNSLGame(appId))
 					cats.push(CustomStoreCategory.NSL);
-				if (launchCommand.includes("heroic://launch/gog/"))
+				if (await isHeroicGame(appId))
 					cats.push(CustomStoreCategory.Heroic);
-				if (launchCommand.includes("flatpak"))
+				if (await isLutrisGame(appId))
+					cats.push(CustomStoreCategory.Lutris);
+				if (await isFlatpakGame(appId))
 					cats.push(CustomStoreCategory.Flatpak);
 
 				return {
