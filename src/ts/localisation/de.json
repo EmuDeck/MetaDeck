@@ -6,7 +6,7 @@
 	"cacheCleared": "Cache Cleared",
 	"refresh": "Aktualisieren",
 	"loading": "Lädt",
-	"fetching": "Wird abgerufen",
+	"initializing": "Wird abgerufen",
 	"noMetadata": "Keine Metadaten gefunden",
 	"foundMetadata": "Beschreibung: %%, Bestätigung: %%",
 	"currentGame": "%%: %%",

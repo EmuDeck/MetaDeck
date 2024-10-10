@@ -1,13 +1,16 @@
 import {MetaDeckState} from "./hooks/metadataContext";
-import {MetadataCustomDictionary, MetadataDictionary, MetadataIdDictionary} from "./Interfaces";
 import Logger from "./logger";
 import {systemClock} from "./System";
 import {callable} from "@decky/api";
+import {ModuleCaches, ModuleConfigs} from "./modules/module";
+import {merge} from "lodash-es";
 
-export type SettingsData = {
-	metadata_id: MetadataIdDictionary,
-	metadata_custom: MetadataCustomDictionary,
-	metadata: MetadataDictionary
+export type ConfigData = {
+	modules: ModuleConfigs
+}
+
+export type CacheData = {
+	modules: ModuleCaches
 }
 
 export class Settings {
@@ -16,126 +19,221 @@ export class Settings {
 	// private readonly mutex: Mutex = new Mutex();
 	// private readonly packet_size: number = 50;
 
-	private read = callable<[], SettingsData>("read")
-	private write = callable<[SettingsData], void>("write")
+	private read_config = callable<[], ConfigData>("read_config")
+	private write_config = callable<[ConfigData], void>("write_config")
+	private read_cache = callable<[], CacheData>("read_cache")
+	private write_cache = callable<[CacheData], void>("write_cache")
 
-	data: SettingsData = {
-		metadata_id: {},
-		metadata_custom: {},
-		metadata: {}
-	};
+	static defaultConfig: ConfigData = {
+		modules: {
+			metadata: {
+				enabled: true,
+				type_override: true,
+				descriptions: true,
+				release_date: true,
+				associations: true,
+				categories: true,
+				markdown: true,
+				title_header: true,
+				rating: true,
+				install_size: true,
+				install_date: true,
+				providers: {
+					epic: {
+						enabled: true,
+						ordinal: 0
+					},
+					gog: {
+						enabled: true,
+						ordinal: 1
+					},
+					igdb: {
+						enabled: true,
+						ordinal: 2,
+						fuzziness: 5,
+						overrides: {}
+					}
+				}
+			},
+			compatdata: {
+				enabled: true,
+				verified: true,
+				notes: true,
+				providers: {
+					emudeck: {
+						enabled: true,
+						ordinal: 0,
+						fuzziness: 5
+					}
+				}
+			}
+		}
+	}
 
-	get metadata_id(): MetadataIdDictionary {return this.get("metadata_id")}
-	set metadata_id(metadata_id: MetadataIdDictionary) {this.set("metadata_id", metadata_id)}
+	static defaultCache: CacheData = {
+		modules: {
+			metadata: {
+				ids: {},
+				data: {},
+				providers: {
+					epic: {},
+					gog: {},
+					igdb: {}
+				}
+			},
+			compatdata: {
+				ids: {},
+				data: {},
+				providers: {
+					emudeck: {}
+				}
+			}
+		}
+	}
 
-	get metadata_custom(): MetadataCustomDictionary {return this.get("metadata_custom")}
-	set metadata_custom(metadata_custom: MetadataCustomDictionary) {this.set("metadata_custom", metadata_custom)}
+	configData: ConfigData = merge({}, Settings.defaultConfig)
 
-	get metadata(): MetadataDictionary {return this.get("metadata")}
-	set metadata(metadata: MetadataDictionary) {this.set("metadata", metadata)}
+	cacheData: CacheData = merge({}, Settings.defaultCache)
 
-	constructor(state: MetaDeckState, startingSettings: SettingsData = {} as SettingsData)
+	get config(): ConfigData
+	{
+		const self: Settings = this
+		return {
+			get modules(): ConfigData["modules"]
+			{
+				return self.getConfig("modules")
+			},
+
+			set modules(modules: ConfigData["modules"])
+			{
+				self.setConfig("modules", modules)
+			}
+		}
+	}
+
+	set config(data: ConfigData)
+	{
+		(Object.keys(data) as (keyof ConfigData)[]).forEach(key => {
+			this.setConfig(key, data[key]);
+		})
+	}
+
+
+
+	get cache(): CacheData
+	{
+		const self: Settings = this
+		return {
+			get modules(): CacheData["modules"]
+			{
+				return self.getCache("modules")
+			},
+
+			set modules(modules: CacheData["modules"])
+			{
+				self.setCache("modules", modules)
+			}
+		}
+	}
+
+	set cache(data: CacheData)
+	{
+		(Object.keys(data) as (keyof CacheData)[]).forEach(key => {
+			this.setCache(key, data[key]);
+		})
+	}
+
+	constructor(state: MetaDeckState)
 	{
 		this.state = state;
 		this.logger = new Logger("Settings");
-		this.setMultiple(startingSettings);
 	}
 
-	set<T extends keyof SettingsData>(key: T, value: SettingsData[T])
+	setConfig<T extends keyof ConfigData>(key: T, value: ConfigData[T])
 	{
-		if (this.data.hasOwnProperty(key))
+		if (this.configData.hasOwnProperty(key))
 		{
-			this.data[key] = value;
+			this.configData[key] = value;
+			void this.writeConfig()
 		}
 		this.state.notifyUpdate()
 		return this
 	}
 
-	setMultiple(settings: SettingsData)
+	getConfig<T extends keyof ConfigData>(key: T): ConfigData[T]
 	{
-		(Object.keys(settings) as (keyof SettingsData)[]).forEach((key: keyof SettingsData) => {
-			this.set(key, settings[key]);
-		})
+		return this.configData[key];
+	}
+
+	setCache<T extends keyof CacheData>(key: T, value: CacheData[T])
+	{
+		if (this.cacheData.hasOwnProperty(key))
+		{
+			this.cacheData[key] = value;
+			void this.writeCache()
+		}
+		this.state.notifyUpdate()
 		return this
 	}
 
-	get<T extends keyof SettingsData>(key: T): SettingsData[T]
+	getCache<T extends keyof CacheData>(key: T): CacheData[T]
 	{
-		return this.data[key];
+		return this.cacheData[key];
 	}
 
 	async readSettings(): Promise<void>
 	{
-		// const release = await this.mutex.acquire();
-		// let buffer = "";
-		// let length = 0;
-		// const startResponse = await this.serverAPI.callPluginMethod<{packet_size?: number}, number>("start_read_config", {packet_size: this.packet_size});
-		// if (startResponse.success)
-		// {
-		// 	length = startResponse.result;
-		// 	for (let i = 0; i < length; i++)
-		// 	{
-		// 		const response = await this.serverAPI.callPluginMethod<{
-		// 			index: number
-		// 		}, string>("read_config", {index: i});
-		// 		if (response.success)
-		// 		{
-		// 			buffer += response.result;
-		// 		} else
-		// 		{
-		// 			release()
-		// 			throw new Error(response.result);
-		// 		}
-		// 	}
-		// 	release()
-		// 	this.logger.debug("readSettings", buffer);
-		// 	this.data = JSON.parse(buffer);
-		// } else
-		// {
-		// 	release()
-		// 	throw new Error(startResponse.result);
-		// }
 		this.logger.debug("Reading settings...");
 		const start = systemClock.getTimeMs();
-		this.data = await this.read();
+		await this.readConfig();
+		await this.readCache();
 		const end = systemClock.getTimeMs();
 		this.logger.debug("Read settings in " + (end - start) + "ms");
 	}
 
 	async writeSettings(): Promise<void>
 	{
-		// const release = await this.mutex.acquire();
-		// const buffer = JSON.stringify(this.data, undefined, "\t")
-		// const length = Math.ceil(buffer.length / this.packet_size)
-		// const startResponse = await this.serverAPI.callPluginMethod<{
-		// 	length: number,
-		// 	packet_size?: number
-		// }, void>("start_write_config", {length: length, packet_size: this.packet_size})
-		// if (startResponse.success)
-		// {
-		// 	for (let i = 0; i < length; i++)
-		// 	{
-		// 		const data = buffer.slice(i * this.packet_size, (i + 1) * this.packet_size)
-		// 		const response = await this.serverAPI.callPluginMethod<{
-		// 			index: number,
-		// 			data: string
-		// 		}, void>("write_config", {index: i, data: data})
-		// 		if (!response.success)
-		// 		{
-		// 			release()
-		// 			throw new Error(response.result)
-		// 		}
-		// 	}
-		// 	release()
-		// } else
-		// {
-		// 	release()
-		// 	throw new Error(startResponse.result)
-		// }
 		this.logger.debug("Writing settings...");
 		const start = systemClock.getTimeMs();
-		await this.write(this.data);
+		await this.writeConfig();
+		await this.writeCache();
 		const end = systemClock.getTimeMs();
 		this.logger.debug("Wrote settings in " + (end - start) + "ms");
+	}
+
+	async readConfig(): Promise<void>
+	{
+		this.logger.debug("Reading config...");
+		const start = systemClock.getTimeMs();
+		merge(this.configData, Settings.defaultConfig, await this.read_config());
+		const end = systemClock.getTimeMs();
+		this.logger.debug("Read config in " + (end - start) + "ms");
+	}
+
+	async writeConfig(): Promise<void>
+	{
+		this.logger.debug("Writing config...");
+		const start = systemClock.getTimeMs();
+		await this.write_config(this.configData);
+		const end = systemClock.getTimeMs();
+		this.logger.debug("Wrote settings in " + (end - start) + "ms");
+	}
+
+	async readCache(): Promise<void>
+	{
+		this.logger.debug("Reading cache...");
+		const start = systemClock.getTimeMs();
+		merge(this.cacheData, Settings.defaultCache, await this.read_cache());
+		const end = systemClock.getTimeMs();
+		this.logger.debug("Read cache in " + (end - start) + "ms");
+	}
+
+	async writeCache(): Promise<void>
+	{
+		this.logger.debug("Writing cache...");
+		const start = systemClock.getTimeMs();
+		await this.write_cache(this.cacheData);
+		const end = systemClock.getTimeMs();
+		this.logger.debug("Wrote cache in " + (end - start) + "ms");
 	}
 }

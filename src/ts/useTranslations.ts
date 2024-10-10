@@ -12,8 +12,15 @@ function getCurrentLanguage(): keyof typeof languages {
 export function useTranslations() {
 	const [lang] = useState(getCurrentLanguage())
 	return function (key: keyof (typeof languages)['en']): string {
-		if (languages[lang]?.[key]?.length) {
-			return languages[lang]?.[key]
+		let lang2 = lang
+		// if (!(key in languages[lang]))
+		// {
+		// 	lang2 = "en"
+		// }
+		// @ts-ignore
+		if (languages[lang2]?.[key]?.length) {
+			// @ts-ignore
+			return languages[lang2]?.[key]
 		} else if (languages.en?.[key]?.length) {
 			return languages.en?.[key]
 		} else {
@@ -23,8 +30,14 @@ export function useTranslations() {
 }
 
 export function t(key: keyof (typeof languages)['en']): string {
-	const lang = getCurrentLanguage()
+	let lang = getCurrentLanguage()
+	// if (!(key in languages[lang]))
+	// {
+	// 	lang = "en"
+	// }
+	// @ts-ignore
 	if (languages[lang]?.[key]?.length) {
+		// @ts-ignore
 		return languages[lang]?.[key]
 	} else if (languages.en?.[key]?.length) {
 		return languages.en?.[key]

@@ -32,7 +32,7 @@ export type Events = {
 	GameStopped: { createdAt: number, game: SteamAppOverview }
 	Suspended: { createdAt: number, game: SteamAppOverview | null }
 	ResumeFromSuspend: { createdAt: number, game: SteamAppOverview | null }
-	Unmount: { createdAt: number, mounts: Mountable[] }
+	Dismount: { createdAt: number, mounts: Mountable[] }
 	Mount: { createdAt: number, mounts: Mountable[] }
 	AppOverviewChanged: { createdAt: number, appid: number }
 }

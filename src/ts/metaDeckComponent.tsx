@@ -1,41 +1,46 @@
 import {useMetaDeckState} from "./hooks/metadataContext";
 import {FC} from "react";
 import {useTranslations} from "./useTranslations";
-import {ButtonItem, PanelSection, PanelSectionRow, ProgressBarWithInfo, SteamSpinner} from "@decky/ui";
-import {FaSync} from "react-icons/fa";
+import {ButtonItem, PanelSection, PanelSectionRow, ProgressBarWithInfo} from "@decky/ui";
+import {FaSync, FaTrash} from "react-icons/fa";
 
 export const MetaDeckComponent: FC = () =>
 {
 	const t = useTranslations()
-	const {managers: {metadataManager}, loadingData, refresh} = useMetaDeckState()
-	return (loadingData.globalLoading ?
+	const { loadingData, refresh, clear } = useMetaDeckState()
+	return (loadingData.loading || loadingData.currentModule.error ?
 			<PanelSection>
-				<PanelSectionRow>
-					<SteamSpinner/>
-				</PanelSectionRow>
 				<PanelSectionRow>
 					<ProgressBarWithInfo
 							label={t("loading")}
 							layout="inline"
 							bottomSeparator="none"
-							sOperationText={loadingData.game}
-							description={loadingData.description}
+							sOperationText={loadingData.currentModule.module.title}
 							nProgress={loadingData.percentage}
 							sTimeRemaining={<div style={{
 								paddingRight: "10px"
-							}}>{!loadingData.fetching ? `${loadingData.processed}/${loadingData.total}` : ""}</div>}
-							indeterminate={loadingData.fetching}
+							}}>{`${loadingData.processed}/${loadingData.total}`}</div>}
+					/>
+				</PanelSectionRow>
+				<PanelSectionRow>
+					<ProgressBarWithInfo
+						   label={loadingData.currentModule.module.title}
+						   layout="inline"
+						   bottomSeparator="none"
+						   sOperationText={loadingData.currentModule.error ? `Error: ${loadingData.currentModule.error.name}` : loadingData.currentModule.game}
+						   description={loadingData.currentModule.error ? loadingData.currentModule.error.message : loadingData.currentModule.description}
+						   nProgress={loadingData.currentModule.percentage}
+						   sTimeRemaining={<div style={{
+							   paddingRight: "10px"
+						   }}>{`${loadingData.currentModule.processed}/${loadingData.currentModule.total}`}</div>}
 					/>
 				</PanelSectionRow>
 			</PanelSection> :
 			<PanelSection>
 				<PanelSectionRow>
-					<ButtonItem onClick={() =>
-					{
-						void metadataManager.clearCache();
-					}}>
-						Clear Cache
-					</ButtonItem>
+					<ButtonItem
+						   onClick={() => void clear()}
+					><FaTrash/> {t("clear")}</ButtonItem>
 				</PanelSectionRow>
 				<PanelSectionRow>
 					<ButtonItem

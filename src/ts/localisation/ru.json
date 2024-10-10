@@ -6,7 +6,7 @@
 	"cacheCleared": "Кэш очищен",
 	"refresh": "Обновить",
 	"loading": "Загрузка",
-	"fetching": "Получение",
+	"initializing": "Получение",
 	"noMetadata": "Метаданные не найдены",
 	"foundMetadata": "Описание: %%, Подтвержденный статус: %%",
 	"currentGame": "%%: %%",

@@ -6,7 +6,7 @@
 	"cacheCleared": "Cache Cleared",
 	"refresh": "Uppdatera",
 	"loading": "Laddar",
-	"fetching": "Hämtar",
+	"initializing": "Hämtar",
 	"noMetadata": "Ingen Metadata Hittades",
 	"foundMetadata": "Beskrivning: %%, Verifierad status: %%",
 	"currentGame": "%%: %%",

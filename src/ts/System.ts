@@ -17,7 +17,7 @@ interface Clock {
 }
 export interface Mountable {
 	mount(): void,
-	unMount(): void
+	dismount(): void
 }
 
 export interface PatchMountable {
@@ -26,7 +26,7 @@ export interface PatchMountable {
 
 export interface AsyncMountable {
 	mount(): Promise<void>,
-	unMount(): Promise<void>
+	dismount(): Promise<void>
 }
 
 export interface AsyncPatchMountable
@@ -34,7 +34,7 @@ export interface AsyncPatchMountable
 	patch(): Promise<Patch>
 }
 
-export class MountManager implements AsyncMountable
+export class Mounts implements AsyncMountable
 {
 	private mounts: Array<Mountable | AsyncMountable> = []
 	private logger: Logger;
@@ -57,7 +57,7 @@ export class MountManager implements AsyncMountable
 			{
 				return patch = (await mount.patch());
 			},
-			async unMount()
+			async dismount()
 			{
 				patch?.unpatch();
 			}
@@ -69,7 +69,7 @@ export class MountManager implements AsyncMountable
 			mount(): void {
 				routerHook.addRoute(path, component, props)
 			},
-			unMount(): void {
+			dismount(): void {
 				routerHook.removeRoute(path)
 			}
 		})
@@ -82,12 +82,12 @@ export class MountManager implements AsyncMountable
 		await this.eventBus.emit("Mount", {createdAt: this.clock.getTimeMs(), mounts: this.mounts})
 	}
 
-	async unMount()
+	async dismount()
 	{
+		await this.eventBus.emit("Dismount", {createdAt: this.clock.getTimeMs(), mounts: this.mounts})
 		for (let mount of this.mounts) {
-			await mount.unMount()
+			await mount.dismount()
 		}
-		await this.eventBus.emit("Unmount", {createdAt: this.clock.getTimeMs(), mounts: this.mounts})
 	}
 
 	register(): () => void
@@ -107,7 +107,7 @@ export class MountManager implements AsyncMountable
 				   {
 					   (async function () {
 						   self.logger.log("Deinitializing plugin");
-						   await self.unMount()
+						   await self.dismount()
 					   })().catch(err => self.logger.error("Error while deinitializing plugin", err));
 				   }
 			   }

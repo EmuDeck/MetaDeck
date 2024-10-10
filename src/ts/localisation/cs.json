@@ -6,7 +6,7 @@
 	"cacheCleared": "Cache Cleared",
 	"refresh": "Obnovit",
 	"loading": "Načítání",
-	"fetching": "Nahrávám",
+	"initializing": "Nahrávám",
 	"noMetadata": "Nebyla nalezena žádná metadata",
 	"foundMetadata": "Popis: %%, Ověřený stav: %%",
 	"currentGame": "%%: %%",

@@ -6,7 +6,7 @@
 	"cacheCleared": "Önbellek temizlendi",
 	"refresh": "Yenile",
 	"loading": "Yükleniyor",
-	"fetching": "Veriler alınıyor",
+	"initializing": "Veriler alınıyor",
 	"noMetadata": "Metadata bulunamadı",
 	"foundMetadata": "Açıklama: %%, Doğrulanma Durumu: %%",
 	"currentGame": "%%: %%",

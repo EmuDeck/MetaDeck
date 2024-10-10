@@ -10,12 +10,59 @@ import decky
 
 
 class Plugin:
-	config: dict
+	async def read_config(self) -> dict:
+		with open(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "r") as f:
+			return json.load(f)
+
+	async def write_config(self, data: dict) -> None:
+		with open(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "w") as f:
+			json.dump(data, f, indent="\t")
+
+	async def write_cache(self, data: dict) -> None:
+		with open(os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "cache.json"), "w") as f:
+			json.dump(data, f, indent="\t")
+
+	async def read_cache(self) -> dict:
+		with open(os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "cache.json"), "r") as f:
+			return json.load(f)
+
+	async def file_size(self, path: str) -> int:
+		if os.path.exists(path):
+			return os.path.getsize(path)
+		else:
+			return 0
+
+	async def file_date(self, path: str) -> int:
+		if os.path.exists(path):
+			return int(os.path.getctime(path))
+		else:
+			return 0
+
+	async def directory_size(self, path: str) -> int:
+		total_size = 0
+		for dirpath, dirnames, filenames in os.walk(path):
+			for f in filenames:
+				fp = os.path.join(dirpath, f)
+				# Skip if it is symbolic link
+				if not os.path.islink(fp):
+					total_size += os.path.getsize(fp)
+		return total_size
 
 	async def _main(self) -> None:
 		"""
 		Load function
 		"""
+		if not os.path.exists(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")):
+			with open(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "w") as f:
+				json.dump({
+					"metadata_id": {},
+					"metadata_custom": {}
+				}, f, indent="\t")
+		if not os.path.exists(os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "cache.json")):
+			with open(os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "cache.json"), "w") as f:
+				json.dump({
+					"metadata": {}
+				}, f, indent="\t")
 		decky.logger.info("Starting MetaDeck")
 
 	async def _unload(self) -> None:
@@ -31,22 +78,6 @@ class Plugin:
 		if os.path.exists(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "metadeck.json")):
 			os.rename(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "metadeck.json"),
 					os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"))
-
-	async def read(self) -> dict:
-		if not os.path.exists(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")):
-			with open(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "w") as f:
-				json.dump({
-					"metadata_id": {},
-					"metadata_custom": {},
-					"metadata": {}
-				}, f)
-		with open(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "r") as f:
-			return json.load(f)
-
-	async def write(self, data: dict) -> None:
-		with open(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "w") as f:
-			json.dump(data, f)
-
 
 # async def get_metadata_for_key(self, key: int) -> Dict[str, Any] | None:
 # 	"""

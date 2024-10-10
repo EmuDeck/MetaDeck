@@ -6,7 +6,7 @@
 	"cacheCleared": "Кеш очищено",
 	"refresh": "Оновити",
 	"loading": "Завантаження",
-	"fetching": "Отримання",
+	"initializing": "Отримання",
 	"noMetadata": "Метадані не знайдені",
 	"foundMetadata": "Опис: %%, Підтверджений статус: %%",
 	"currentGame": "%%: %%",

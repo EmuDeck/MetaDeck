@@ -6,7 +6,7 @@
 	"cacheCleared": "缓存已清除",
 	"refresh": "刷新",
 	"loading": "加载中",
-	"fetching": "获取中",
+	"initializing": "获取中",
 	"noMetadata": "未找到元数据",
 	"foundMetadata": "Description: %%, Verified status: %%",
 	"currentGame": "%%: %%",
