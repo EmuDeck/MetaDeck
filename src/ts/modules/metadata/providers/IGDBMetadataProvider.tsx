@@ -246,7 +246,7 @@ export class IGDBMetadataProvider extends MetadataProvider
 				// if (await isAchievementsGame(appId))
 				// 	game.store_categories.push(StoreCategory.Achievements)
 				if (await isEmulatedGame(appId))
-					game.store_categories.push(CustomStoreCategory.EmuDeck)
+					game.store_categories.push(StoreCategory.FullController, CustomStoreCategory.EmuDeck);
 				if (await isFlatpakGame(appId))
 					game.store_categories.push(CustomStoreCategory.Flatpak);
 			}

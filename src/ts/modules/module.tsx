@@ -170,9 +170,15 @@ export abstract class Module<Mod extends Module<Mod, Prov, ModConfig, ProvConfig
 		await this.saveData();
 	}
 
-	abstract loadData(): Promise<void>
+	async loadData(): Promise<void>
+	{
+		await this.state.settings.readSettings();
+	}
 
-	abstract saveData(): Promise<void>
+	async saveData(): Promise<void>
+	{
+		await this.state.settings.writeSettings();
+	}
 
 	abstract addMounts(mounts: Mounts): void;
 

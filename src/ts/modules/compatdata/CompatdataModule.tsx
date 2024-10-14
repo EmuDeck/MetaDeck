@@ -5,8 +5,6 @@ import {CompatdataProvider} from "./CompatdataProvider";
 import {FC, Fragment, ReactNode, useState} from "react";
 import {Mounts} from "../../System";
 import Logger from "../../logger";
-import {merge} from "lodash-es";
-import {Settings} from "../../settings";
 import {routePatch} from "../../RoutePatches";
 import {format, t} from "../../useTranslations";
 import {Modules} from "../../hooks/metadataContext";
@@ -56,26 +54,19 @@ export class CompatdataModule extends Module<CompatdataModule, CompatdataProvide
 		new EmuDeckCompatdataProvider(this)
 	];
 
-	config: CompatdataConfig = merge({}, Settings.defaultConfig.modules.compatdata);
-	cache: CompatdataCache = merge({}, Settings.defaultCache.modules.compatdata);
+	get config(): CompatdataConfig
+	{
+		return this.state.settings.config.modules.compatdata
+	}
+
+	get cache(): CompatdataCache
+	{
+		return this.state.settings.cache.modules.compatdata
+	}
 
 	dependencies: (keyof Modules)[] = [
 		"metadata"
 	];
-
-	async loadData(): Promise<void>
-	{
-		await this.state.settings.readSettings();
-		merge(this.config, this.state.settings.config.modules.compatdata);
-		merge(this.cache, this.state.settings.cache.modules.compatdata);
-	}
-
-	async saveData(): Promise<void>
-	{
-		this.state.settings.config.modules.compatdata = this.config
-		this.state.settings.cache.modules.compatdata = this.cache
-		await this.state.settings.writeSettings();
-	}
 
 	addMounts(mounts: Mounts): void
 	{
@@ -117,7 +108,6 @@ export class CompatdataModule extends Module<CompatdataModule, CompatdataProvide
 		}));
 
 		mounts.addMount(routePatch("/library", (props: { path?: string, children?: ReactNode }) => {
-
 			afterPatch(props.children, "type", (_, ret) => {
 				if (!module.isValid)
 					return ret;
@@ -149,7 +139,6 @@ export class CompatdataModule extends Module<CompatdataModule, CompatdataProvide
 	set verified(verified: boolean)
 	{
 		this.config.verified = verified
-		void this.saveData();
 	}
 
 	get notes(): boolean
@@ -160,7 +149,6 @@ export class CompatdataModule extends Module<CompatdataModule, CompatdataProvide
 	set notes(notes: boolean)
 	{
 		this.config.notes = notes
-		void this.saveData();
 	}
 
 	settingsComponent(): FC

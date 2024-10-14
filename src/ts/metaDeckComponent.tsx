@@ -8,14 +8,15 @@ export const MetaDeckComponent: FC = () =>
 {
 	const t = useTranslations()
 	const { loadingData, refresh, clear } = useMetaDeckState()
-	return (loadingData.loading || loadingData.currentModule.error ?
+	console.debug(loadingData)
+	return (loadingData.loading || loadingData.currentModule?.error ?
 			<PanelSection>
 				<PanelSectionRow>
 					<ProgressBarWithInfo
 							label={t("loading")}
 							layout="inline"
 							bottomSeparator="none"
-							sOperationText={loadingData.currentModule.module.title}
+							sOperationText={loadingData.currentModule?.module.title}
 							nProgress={loadingData.percentage}
 							sTimeRemaining={<div style={{
 								paddingRight: "10px"
@@ -27,12 +28,12 @@ export const MetaDeckComponent: FC = () =>
 						   label={loadingData.currentModule.module.title}
 						   layout="inline"
 						   bottomSeparator="none"
-						   sOperationText={loadingData.currentModule.error ? `Error: ${loadingData.currentModule.error.name}` : loadingData.currentModule.game}
-						   description={loadingData.currentModule.error ? loadingData.currentModule.error.message : loadingData.currentModule.description}
-						   nProgress={loadingData.currentModule.percentage}
+						   sOperationText={loadingData.currentModule?.error ? `Error: ${loadingData.currentModule?.error.name}` : loadingData.currentModule?.game}
+						   description={loadingData.currentModule?.error ? loadingData.currentModule?.error.message : loadingData.currentModule?.description}
+						   nProgress={loadingData.currentModule?.percentage}
 						   sTimeRemaining={<div style={{
 							   paddingRight: "10px"
-						   }}>{`${loadingData.currentModule.processed}/${loadingData.currentModule.total}`}</div>}
+						   }}>{`${loadingData.currentModule?.processed}/${loadingData.currentModule?.total}`}</div>}
 					/>
 				</PanelSectionRow>
 			</PanelSection> :

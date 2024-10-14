@@ -13,7 +13,8 @@ export type CacheData = {
 	modules: ModuleCaches
 }
 
-export class Settings {
+export class Settings
+{
 	private readonly state: MetaDeckState;
 	private readonly logger: Logger;
 	// private readonly mutex: Mutex = new Mutex();
@@ -24,7 +25,7 @@ export class Settings {
 	private read_cache = callable<[], CacheData>("read_cache")
 	private write_cache = callable<[CacheData], void>("write_cache")
 
-	static defaultConfig: ConfigData = {
+	static readonly defaultConfig: ConfigData = {
 		modules: {
 			metadata: {
 				enabled: true,
@@ -70,7 +71,7 @@ export class Settings {
 		}
 	}
 
-	static defaultCache: CacheData = {
+	static readonly defaultCache: CacheData = {
 		modules: {
 			metadata: {
 				ids: {},
@@ -95,90 +96,62 @@ export class Settings {
 
 	cacheData: CacheData = merge({}, Settings.defaultCache)
 
-	get config(): ConfigData
-	{
-		const self: Settings = this
-		return {
-			get modules(): ConfigData["modules"]
-			{
-				return self.getConfig("modules")
-			},
-
-			set modules(modules: ConfigData["modules"])
-			{
-				self.setConfig("modules", modules)
-			}
-		}
-	}
-
-	set config(data: ConfigData)
-	{
-		(Object.keys(data) as (keyof ConfigData)[]).forEach(key => {
-			this.setConfig(key, data[key]);
-		})
-	}
-
-
-
-	get cache(): CacheData
-	{
-		const self: Settings = this
-		return {
-			get modules(): CacheData["modules"]
-			{
-				return self.getCache("modules")
-			},
-
-			set modules(modules: CacheData["modules"])
-			{
-				self.setCache("modules", modules)
-			}
-		}
-	}
-
-	set cache(data: CacheData)
-	{
-		(Object.keys(data) as (keyof CacheData)[]).forEach(key => {
-			this.setCache(key, data[key]);
-		})
-	}
-
 	constructor(state: MetaDeckState)
 	{
 		this.state = state;
 		this.logger = new Logger("Settings");
 	}
 
-	setConfig<T extends keyof ConfigData>(key: T, value: ConfigData[T])
+
+	get config(): ConfigData
 	{
-		if (this.configData.hasOwnProperty(key))
-		{
-			this.configData[key] = value;
-			void this.writeConfig()
-		}
-		this.state.notifyUpdate()
-		return this
+		const self: Settings = this;
+		const createHandler = <T>(path: string[] = []) => ({
+			get: (target: T, key: keyof T): any => {
+				if (key == 'isProxy') return true;
+				if (typeof target[key] === 'object' && target[key] != null)
+					return new Proxy(
+						   target[key],
+						   createHandler<any>([...path, key as string])
+					);
+				return target[key];
+			},
+			set: (target: T, key: keyof T, value: any) =>  {
+				self.logger.debug(`Setting ${[...path, key]} to: `, value);
+				target[key] = value;
+				void self.writeConfig();
+				self.state.notifyUpdate();
+				return true;
+			}
+		});
+
+		return new Proxy(this.configData, createHandler<ConfigData>());
 	}
 
-	getConfig<T extends keyof ConfigData>(key: T): ConfigData[T]
+	get cache(): CacheData
 	{
-		return this.configData[key];
-	}
+		const self: Settings = this
 
-	setCache<T extends keyof CacheData>(key: T, value: CacheData[T])
-	{
-		if (this.cacheData.hasOwnProperty(key))
-		{
-			this.cacheData[key] = value;
-			void this.writeCache()
-		}
-		this.state.notifyUpdate()
-		return this
-	}
+		const createHandler = <T>(path: string[] = []) => ({
+			get: (target: T, key: keyof T): any => {
+				if (key == 'isProxy') return true;
+				if (typeof target[key] === 'object' && target[key] != null)
+					return new Proxy(
+						   target[key],
+						   createHandler<any>([...path, key as string])
+					);
+				return target[key];
+			},
+			set: (target: T, key: keyof T, value: any) =>  {
+				self.logger.debug(`Setting ${[...path, key]} to: `, value);
+				target[key] = value;
+				void self.writeCache();
+				self.state.notifyUpdate();
+				return true;
+			}
+		});
 
-	getCache<T extends keyof CacheData>(key: T): CacheData[T]
-	{
-		return this.cacheData[key];
+		return new Proxy(self.cacheData, createHandler<CacheData>());
 	}
 
 	async readSettings(): Promise<void>
@@ -205,9 +178,9 @@ export class Settings {
 	{
 		this.logger.debug("Reading config...");
 		const start = systemClock.getTimeMs();
-		merge(this.configData, Settings.defaultConfig, await this.read_config());
+		this.configData = merge({}, Settings.defaultConfig, await this.read_config());
 		const end = systemClock.getTimeMs();
-		this.logger.debug("Read config in " + (end - start) + "ms");
+		this.logger.debug("Read config in " + (end - start) + "ms", this.configData);
 	}
 
 	async writeConfig(): Promise<void>
@@ -216,16 +189,16 @@ export class Settings {
 		const start = systemClock.getTimeMs();
 		await this.write_config(this.configData);
 		const end = systemClock.getTimeMs();
-		this.logger.debug("Wrote settings in " + (end - start) + "ms");
+		this.logger.debug("Wrote settings in " + (end - start) + "ms", this.configData);
 	}
 
 	async readCache(): Promise<void>
 	{
 		this.logger.debug("Reading cache...");
 		const start = systemClock.getTimeMs();
-		merge(this.cacheData, Settings.defaultCache, await this.read_cache());
+		this.cacheData = merge({}, Settings.defaultCache, await this.read_cache());
 		const end = systemClock.getTimeMs();
-		this.logger.debug("Read cache in " + (end - start) + "ms");
+		this.logger.debug("Read cache in " + (end - start) + "ms", this.cacheData);
 	}
 
 	async writeCache(): Promise<void>
@@ -234,6 +207,6 @@ export class Settings {
 		const start = systemClock.getTimeMs();
 		await this.write_cache(this.cacheData);
 		const end = systemClock.getTimeMs();
-		this.logger.debug("Wrote cache in " + (end - start) + "ms");
+		this.logger.debug("Wrote cache in " + (end - start) + "ms", this.cacheData);
 	}
 }

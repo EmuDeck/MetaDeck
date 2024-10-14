@@ -49,6 +49,32 @@ export const isFlatpakGame: (appId: number) => Promise<boolean> = async (appId) 
 	return launchCommand.includes("flatpak");
 }
 
+export const isEpicGame: (appId: number) => Promise<boolean> = async (appId) =>
+{
+	const details = await getAppDetails(appId);
+
+	let launchCommand: string
+	if (details?.strShortcutLaunchOptions?.includes("%command%"))
+		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
+	else
+		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
+
+	return launchCommand.includes("epic-launcher.sh") || launchCommand.includes("com.epicgames.launcher://apps/") || launchCommand.includes("heroic://launch/legendary/")
+}
+
+export const isGOGGame: (appId: number) => Promise<boolean> = async (appId) =>
+{
+	const details = await getAppDetails(appId);
+
+	let launchCommand: string
+	if (details?.strShortcutLaunchOptions?.includes("%command%"))
+		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
+	else
+		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
+
+	return launchCommand.includes("gog-launcher.sh") || launchCommand.includes("/command=runGame /gameId=") || launchCommand.includes("heroic://launch/gog/")
+}
+
 export const isJunkStoreGame: (appId: number) => Promise<boolean> = async (appId) =>
 {
 	const details = await getAppDetails(appId);
