@@ -41,7 +41,7 @@
 	"settingsOverrides": "Opzioni di sovrascrittura",
 	"settingsOverridesDesc": "Sovrascrive il gioco che il provider rileva per una determinata app",
 	"metadataSettingsTypeOverride": "Sovrascrivi tipo di app",
-	"metadataSettingsTypeOverrideDesc": "Sovrascrive il tipo di app nelle informazioni del gioco per mostrare sempre i metadati",
+	"metadataSettingsTypeOverrideDesc": "Sovrascrive il tipo di app nelle informazioni del gioco di Steam per mostrare sempre i metadati",
 	"metadataSettingsDescriptions": "Applica descrizione",
 	"metadataSettingsDescriptionsDesc": "Scarica la descrizione dai provider e la aggiunge alla pagina delle informazioni del gioco",
 	"metadataSettingsReleaseDate": "Applica data di rilascio",
