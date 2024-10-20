@@ -32,7 +32,7 @@
 	"storeCategoriesLutris": "Lutris",
 	"storeCategoriesPrime": "Amazon Prime Gaming",
 	"storeCategoriesFlatpak": "Flatpak",
-	"settingsModule": "%% Settings",
+	"settingsModule": "%% Configuración",
 	"settingsModuleProvider": "%% Provider Settings",
 	"settingsProvider": "Provider Settings",
 	"settingsDependencyNotMet": "%% depends on %%",
