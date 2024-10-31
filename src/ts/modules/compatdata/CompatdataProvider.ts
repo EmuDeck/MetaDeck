@@ -1,19 +1,40 @@
-import {Provider} from "../provider";
+import {Provider} from "../Provider";
 import {CompatdataData} from "../../Interfaces";
 import {
 	CompatdataCache,
 	CompatdataConfig,
 	CompatdataModule, CompatdataProviderCaches, CompatdataProviderCacheTypes,
 	CompatdataProviderConfigs,
-	CompatdataProviderConfigTypes
+	CompatdataProviderConfigTypes, CompatdataProviderResolverCaches, CompatdataProviderResolverConfigs
 } from "./CompatdataModule";
+import {Resolver} from "../Resolver";
 
-export abstract class CompatdataProvider extends Provider<CompatdataProvider, CompatdataModule, CompatdataConfig, CompatdataProviderConfigs, CompatdataProviderConfigTypes, CompatdataCache, CompatdataProviderCaches, CompatdataProviderCacheTypes, CompatdataData>
+export abstract class CompatdataProvider<Res extends Resolver<
+	   CompatdataModule,
+	   CompatdataProvider<Res>,
+	   Res,
+	   CompatdataConfig,
+	   CompatdataProviderConfigs,
+	   CompatdataProviderConfigTypes,
+	   CompatdataProviderResolverConfigs,
+	   CompatdataCache,
+	   CompatdataProviderCaches,
+	   CompatdataProviderCacheTypes,
+	   CompatdataProviderResolverCaches,
+	   CompatdataData
+>> extends Provider<
+	   CompatdataModule,
+	   CompatdataProvider<Res>,
+	   Res,
+	   CompatdataConfig,
+	   CompatdataProviderConfigs,
+	   CompatdataProviderConfigTypes,
+	   CompatdataProviderResolverConfigs,
+	   CompatdataCache,
+	   CompatdataProviderCaches,
+	   CompatdataProviderCacheTypes,
+	   CompatdataProviderResolverCaches,
+	   CompatdataData
+>
 {
-	protected module: CompatdataModule;
-	constructor(module: CompatdataModule)
-	{
-		super(module);
-		this.module = module;
-	}
 }

@@ -12,17 +12,16 @@ import {
 
 import {FaDatabase} from "react-icons/fa";
 import Logger from "./logger";
-import {MetaDeckComponent} from "./metaDeckComponent";
+import {MetaDeckComponent} from "./MetaDeckComponent";
 import {AppDetailsStore, AppStore} from "./SteamTypes";
 import {Mounts} from "./System";
 import {Fragment, ReactNode} from "react";
-import {MetaDeckState, MetaDeckStateContextProvider, Modules} from "./hooks/metadataContext";
+import {MetaDeckState, MetaDeckStateContext, MetaDeckStateContextProvider} from "./MetaDeckState";
 import {EventBus} from "./events";
 import {DialogButton, Navigation} from "@decky/ui";
 import {BsGearFill} from "react-icons/bs";
 import {SettingsComponent} from "./modules/SettingsComponent";
 import {ProviderSettingsComponent} from "./modules/ProviderSettingsComponent";
-import {Settings} from "./settings";
 
 declare global
 {
@@ -62,12 +61,7 @@ declare global
 		MetaDeck__SECRET: {
 			set bypassCounter(count: number)
 		};
-		MetaDeck: {
-			Events: EventBus,
-			State: MetaDeckState
-			Modules: Modules,
-			Settings: Settings
-		} | undefined
+		MetaDeck: MetaDeckStateContext | undefined
 	}
 }
 
@@ -98,33 +92,18 @@ declare global
 // });
 
 
+// noinspection JSUnusedGlobalSymbols
 export default definePlugin(() => {
 	const logger = new Logger("Index");
 	const eventBus = new EventBus();
 	const mounts = new Mounts(eventBus, logger);
-	const state = new MetaDeckState(mounts)
+	const state = new MetaDeckState(eventBus, mounts);
 	window.MetaDeck__SECRET = {
 		set bypassCounter(count: number)
 		{
 			state.modules.metadata.bypassBypass = count
 		}
 	}
-
-	mounts.addMount({
-		mount()
-		{
-			window.MetaDeck = {
-				Events: eventBus,
-				State: state,
-				Modules: state.modules,
-				Settings: state.settings
-			}
-		},
-		dismount()
-		{
-			delete window.MetaDeck
-		}
-	})
 
 
 	// const checkOnlineStatus = async () => {

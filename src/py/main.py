@@ -23,7 +23,10 @@ class Plugin:
 
 	async def read_config(self) -> dict:
 		with open(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "r") as f:
-			return json.load(f)
+			try:
+				return json.load(f)
+			except:
+				return {}
 
 	async def write_config(self, data: dict) -> None:
 		with open(os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json"), "w") as f:
@@ -35,7 +38,14 @@ class Plugin:
 
 	async def read_cache(self) -> dict:
 		with open(os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "cache.json"), "r") as f:
-			return json.load(f)
+			try:
+				return json.load(f)
+			except:
+				return {}
+
+	async def read_file(self, path: str) -> str:
+		with open(path, "r") as f:
+			return f.read()
 
 	async def file_size(self, path: str) -> int:
 		if os.path.exists(path):

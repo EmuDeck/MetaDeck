@@ -1,21 +1,23 @@
-import {createContext, FC, PropsWithChildren, ReactNode, useContext, useEffect, useState} from "react";
-import {Settings} from "../settings";
-import {t} from "../useTranslations";
-import {MetadataModule} from "../modules/metadata/MetadataModule";
-import {AsyncMountable, Mounts} from "../System";
-import {Module} from "../modules/module";
-import {getAllNonSteamAppOverviews} from "../util";
-import {Provider} from "../modules/provider";
-import {CompatdataModule} from "../modules/compatdata/CompatdataModule";
+import {createContext, FC, PropsWithChildren, useContext, useEffect, useState} from "react";
+import {Settings} from "./settings";
+import {t} from "./useTranslations";
+import {MetadataModule} from "./modules/metadata/MetadataModule";
+import {AsyncMountable, Mounts, systemClock} from "./System";
+import {Module} from "./modules/Module";
+import {getAllNonSteamAppOverviews} from "./util";
+import {Provider} from "./modules/Provider";
+import {CompatdataModule} from "./modules/compatdata/CompatdataModule";
 import {toaster} from "@decky/api";
+import {EventBus} from "./events";
+import {SteamAppOverview} from "./SteamTypes";
 
 interface GlobalLoadingData
 {
 	get currentModule(): ModuleLoadingData
 
-	get module(): string
+	get module(): keyof Modules | ""
 
-	set module(value: string)
+	set module(value: keyof Modules | "")
 
 	get percentage(): number
 
@@ -31,7 +33,7 @@ interface GlobalLoadingData
 
 	set loading(value: boolean)
 
-	get modules(): Record<keyof Modules, ModuleLoadingData>
+	get modules(): Record<keyof Modules | "", ModuleLoadingData>
 }
 
 interface ModuleLoadingData
@@ -61,20 +63,21 @@ interface ModuleLoadingData
 	set error(value: Error | undefined)
 }
 
-export interface Modules extends Record<string, Module<any, Provider<any, any, any, any, any, any, any, any, any>, any, any, any, any, any, any, any>>
+export interface Modules extends Record<string, Module<any, Provider<any, any, any, any, any, any, any, any, any, any, any, any>, any, any, any, any, any, any, any, any, any>>
 {
-	metadata: MetadataModule,
-	compatdata: CompatdataModule
+	readonly metadata: MetadataModule,
+	readonly compatdata: CompatdataModule
 }
 
-interface MetaDeckStateContext
+export interface MetaDeckStateContext
 {
-	loadingData: GlobalLoadingData,
-	modules: Modules,
-	apps: number[],
-	// serverAPI: ServerAPI,
-	settings: Settings,
-	mounts: Mounts,
+	readonly loadingData: GlobalLoadingData,
+	readonly modules: Modules,
+	readonly overviews: SteamAppOverview[],
+	readonly apps: number[],
+	readonly settings: Settings,
+	readonly mounts: Mounts,
+	readonly eventBus: EventBus,
 
 	clear(): Promise<void>,
 
@@ -96,14 +99,14 @@ class GlobalLoadingDataImpl implements GlobalLoadingData
 		return this.modules[this.module]
 	}
 
-	private _module: string = ""
+	private _module: keyof Modules | "" = ""
 	
-	get module(): string
+	get module(): keyof Modules | ""
 	{
 		return this._module;
 	}
 
-	set module(value: string)
+	set module(value: keyof Modules | "")
 	{
 		this._module = value;
 		this.state.notifyUpdate();
@@ -153,9 +156,9 @@ class GlobalLoadingDataImpl implements GlobalLoadingData
 		this.state.notifyUpdate();
 	}
 
-	private readonly _modules: Record<keyof Modules, ModuleLoadingData> = {}
+	private readonly _modules: Record<keyof Modules | "", ModuleLoadingData> = {}
 
-	get modules(): Record<keyof Modules, ModuleLoadingData>
+	get modules(): Record<keyof Modules | "", ModuleLoadingData>
 	{
 		return this._modules;
 	}
@@ -253,36 +256,48 @@ class ModuleLoadingDataImpl implements ModuleLoadingData
 
 export class MetaDeckState implements AsyncMountable
 {
-	private _loadingData: GlobalLoadingData = new GlobalLoadingDataImpl(this)
+	private readonly _loadingData: GlobalLoadingData = new GlobalLoadingDataImpl(this)
 
-	// private readonly _serverAPI;
 	private readonly _settings: Settings;
 	private readonly _mounts: Mounts;
 	private readonly _modules: Modules;
+	private readonly _eventBus: EventBus
 
-	constructor(mounts: Mounts)
+	constructor(eventBus: EventBus, mounts: Mounts)
 	{
-		// this._serverAPI = serverAPI;
+		const self = this;
 		this._settings = new Settings(this);
+		this._eventBus = eventBus;
 		this._mounts = mounts;
+		this.mounts.addMount({
+			mount()
+			{
+				window.MetaDeck = self.state;
+			},
+			dismount()
+			{
+				delete window.MetaDeck;
+			}
+		});
 		this._modules = {
 			metadata: new MetadataModule(this),
 			compatdata: new CompatdataModule(this)
-		}
-		this.mounts.addMount(this)
+		};
+		this.mounts.addMount(this);
 	}
 
-	public eventBus = new EventTarget();
 
 	get state(): MetaDeckStateContext
 	{
 		return {
 			loadingData: this.loadingData,
 			modules: this.modules,
+			overviews: this.overviews,
 			apps: this.apps,
 			// serverAPI: this.serverAPI,
 			settings: this.settings,
 			mounts: this.mounts,
+			eventBus: this.eventBus,
 			clear: () => this.clear(),
 			refresh: () => this.refresh(),
 		};
@@ -298,26 +313,26 @@ export class MetaDeckState implements AsyncMountable
 		return this._loadingData;
 	}
 
-	get apps(): number[]
+	get overviews(): SteamAppOverview[]
 	{
 		return getAllNonSteamAppOverviews().sort((a, b) => {
 
-			if (a.display_name < b.display_name)
+			if (a.sort_as < b.sort_as)
 			{
 				return -1;
 			}
-			if (a.display_name > b.display_name)
+			if (a.sort_as > b.sort_as)
 			{
 				return 1;
 			}
 			return 0;
-		}).map(overview => overview.appid);
+		})
 	}
 
-	// get serverAPI(): ServerAPI
-	// {
-	// 	return this._serverAPI;
-	// }
+	get apps(): number[]
+	{
+		return this.overviews.map(overview => overview.appid);
+	}
 
 	get settings(): Settings
 	{
@@ -326,26 +341,32 @@ export class MetaDeckState implements AsyncMountable
 
 	get mounts(): Mounts
 	{
-		return this._mounts
+		return this._mounts;
+	}
+
+	get eventBus(): EventBus
+	{
+		return this._eventBus;
 	}
 
 	async mount(): Promise<void>
 	{
-		await this.refresh()
+		await this.refresh();
 	}
 
 	async dismount(): Promise<void>
 	{
-
+		await this.settings.writeSettings();
 	}
 
 	async refresh(): Promise<void>
 	{
+		await this.settings.readSettings();
 		for (let key of Object.keys(this.state.modules))
 		{
-			this.loadingData.modules[key] = new ModuleLoadingDataImpl(this, this.modules[key].identifier)
+			this.loadingData.modules[key] = new ModuleLoadingDataImpl(this, this.modules[key].identifier);
 		}
-		this.loadingData.loading = true
+		this.loadingData.loading = true;
 		this.loadingData.total = Object.values(this.modules).filter((mod) => mod.isValid).length;
 		this.loadingData.processed = 0;
 		for (let module of Object.values(this.modules).filter((mod) => mod.isValid))
@@ -365,24 +386,25 @@ export class MetaDeckState implements AsyncMountable
 		this.loadingData.total = 0;
 		this.loadingData.processed = 0;
 		this.notifyUpdate();
+		await this.settings.writeSettings();
 	}
 
 	async clear(): Promise<void>
 	{
 		for (let module of Object.values(this.modules))
 		{
-			await module.clearCache()
+			await module.clearCache();
 		}
 		toaster.toast({
 			title: t("title"),
 			body: t("cacheCleared")
-		})
+		});
 		this.notifyUpdate();
 	}
 
 	notifyUpdate(): void
 	{
-		this.eventBus.dispatchEvent(new Event('update'));
+		void this.eventBus.emit("Update", { createdAt: systemClock.getTimeMs() });
 	}
 }
 
@@ -404,9 +426,9 @@ export const MetaDeckStateContextProvider: FC<Props> = ({children, metaDeckState
 			setPublicMetaDeckState({...metaDeckState.state});
 		}
 
-		metaDeckState.eventBus.addEventListener('update', onUpdate);
+		const unsubscribe = metaDeckState.eventBus.on("Update", onUpdate);
 
-		return () => metaDeckState.eventBus.removeEventListener('update', onUpdate);
+		return () => unsubscribe();
 	}, []);
 
 
@@ -418,11 +440,3 @@ export const MetaDeckStateContextProvider: FC<Props> = ({children, metaDeckState
 		   </MetaDeckStateContext.Provider>
 	);
 };
-
-export const MetaDeckStateContextConsumer: FC<{
-	children: (value: MetaDeckStateContext) => ReactNode
-}> = ({children}) => {
-	return <MetaDeckStateContext.Consumer>
-		{children}
-	</MetaDeckStateContext.Consumer>
-}

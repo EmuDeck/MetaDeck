@@ -1,25 +1,24 @@
-import {Provider, ProviderCache, ProviderConfig} from "./provider";
+import {Provider, ProviderCache, ProviderConfig} from "./Provider";
 import {MetadataCache, MetadataConfig} from "./metadata/MetadataModule";
 import {AsyncMountable, Mounts} from "../System";
-import {MetaDeckState, Modules} from "../hooks/metadataContext";
+import {MetaDeckState, Modules} from "../MetaDeckState";
 import {FC} from "react";
 import Logger from "../logger";
 import {CompatdataCache, CompatdataConfig} from "./compatdata/CompatdataModule";
 import {SteamAppDetails, SteamAppOverview} from "../SteamTypes";
-import {runInAction} from "mobx";
-import {getAppDetails} from "../util";
+import {getAppDetails, stateTransaction} from "../util";
 import {format, t} from "../useTranslations";
 import PromisePool from "es6-promise-pool";
+import {ResolverCache, ResolverConfig} from "./Resolver";
 
-export interface ModuleConfig<ModConfig extends ModuleConfig<ModConfig, Mod, Prov, ProvConfigs, ProvConfig, Data>, Mod extends Module<Mod, Prov, ModConfig, ProvConfigs, ProvConfig, any, any, any, Data>, Prov extends Provider<Prov, Mod, ModConfig, ProvConfigs, ProvConfig, any, any, any, Data>, ProvConfigs extends Record<keyof ProvConfigs, ProvConfig>, ProvConfig extends ProviderConfig, Data>
+export interface ModuleConfig<ProvConfigs extends Record<keyof ProvConfigs, ProvConfig>, ProvConfig extends ProviderConfig<any, any>>
 {
 	enabled: boolean,
 	providers: ProvConfigs
 }
 
-export interface ModuleCache<ModCache extends ModuleCache<ModCache, Mod, Prov, ProvCaches, ProviderCache, Data>, Mod extends Module<Mod, Prov, any, any, any, ModCache, ProvCaches, ProvCache, Data>, Prov extends Provider<Prov, Mod, any, any, any, ModCache, ProvCaches, ProvCache, Data>, ProvCaches extends Record<keyof ProvCaches, ProvCache>, ProvCache extends ProviderCache, Data>
+export interface ModuleCache<ProvCaches extends Record<keyof ProvCaches, ProvCache>, ProvCache extends ProviderCache<any, any>, Data>
 {
-	ids: Record<number, keyof ProvCaches>,
 	data: Record<number, Data>,
 	providers: ProvCaches
 }
@@ -37,7 +36,19 @@ export interface ModuleCaches
 }
 
 
-export abstract class Module<Mod extends Module<Mod, Prov, ModConfig, ProvConfigs, ProvConfig, ModCache, ProvCaches, ProvCache, Data>, Prov extends Provider<Prov, Mod, ModConfig, ProvConfigs, ProvConfig, ModCache, ProvCaches, ProvCache, Data>, ModConfig extends ModuleConfig<ModConfig, Mod, Prov, ProvConfigs, ProvConfig, Data>, ProvConfigs extends Record<keyof ProvConfigs, ProvConfig>, ProvConfig extends ProviderConfig, ModCache extends ModuleCache<ModCache, Mod, Prov, ProvCaches, ProvCache, Data>, ProvCaches extends Record<keyof ProvCaches, ProvCache>, ProvCache extends ProviderCache, Data> implements AsyncMountable
+export abstract class Module<
+	   Mod extends Module<Mod, Prov, ModConfig, ProvConfigs, ProvConfig, ProvResConfigs, ModCache, ProvCaches, ProvCache, ProvResCaches, Data>,
+	   Prov extends Provider<Mod, Prov, any, ModConfig, ProvConfigs, ProvConfig, ProvResConfigs, ModCache, ProvCaches, ProvCache, ProvResCaches, Data>,
+	   ModConfig extends ModuleConfig<ProvConfigs, ProvConfig>,
+	   ProvConfigs extends Record<keyof ProvConfigs, ProvConfig>,
+	   ProvConfig extends ProviderConfig<ProvResConfigs[keyof ProvResConfigs], ResolverConfig & ProvResConfigs[keyof ProvResConfigs][keyof ProvResConfigs[keyof ProvResConfigs]]>,
+	   ProvResConfigs extends Record<keyof ProvResConfigs, Record<keyof ProvResConfigs[keyof ProvResConfigs], ProvResConfigs[keyof ProvResConfigs][keyof ProvResConfigs[keyof ProvResConfigs]]>>,
+	   ModCache extends ModuleCache<ProvCaches, ProvCache, Data>,
+	   ProvCaches extends Record<keyof ProvCaches, ProvCache>,
+	   ProvCache extends ProviderCache<ProvResCaches[keyof ProvResCaches], ResolverCache & ProvResCaches[keyof ProvResCaches][keyof ProvResCaches[keyof ProvResCaches]]>,
+	   ProvResCaches extends Record<keyof ProvResCaches, Record<keyof ProvResCaches[keyof ProvResCaches], ProvResCaches[keyof ProvResCaches][keyof ProvResCaches[keyof ProvResCaches]]>>,
+	   Data
+> implements AsyncMountable
 {
 
 	state: MetaDeckState;
@@ -114,7 +125,7 @@ export abstract class Module<Mod extends Module<Mod, Prov, ModConfig, ProvConfig
 			if (overview.app_type == 1073741824)
 			{
 				await this.applyOverview(overview);
-				await runInAction(async () => {
+				await stateTransaction(async () => {
 					const details = await getAppDetails(appId);
 					if (details)
 						await this.applyDetails(details);
@@ -134,7 +145,7 @@ export abstract class Module<Mod extends Module<Mod, Prov, ModConfig, ProvConfig
 			if (overview.app_type == 1073741824)
 			{
 				await this.applyOverview(overview);
-				await runInAction(async () => {
+				await stateTransaction(async () => {
 					await this.applyDetails(details)
 				})
 			}
@@ -166,7 +177,6 @@ export abstract class Module<Mod extends Module<Mod, Prov, ModConfig, ProvConfig
 			await this.removeCache(+appId);
 		}
 		this.data = {};
-		this.cache.ids = {};
 		await this.saveData();
 	}
 
@@ -238,10 +248,8 @@ export abstract class Module<Mod extends Module<Mod, Prov, ModConfig, ProvConfig
 	{
 		try
 		{
-			await this.loadData();
 			await this.refreshDataForApps(this.state.apps)
 			this.logger.debug(`Refreshed ${this.identifier}`, this.data);
-			await this.saveData();
 		} catch (e: any)
 		{
 			this.handleError(e);
@@ -287,17 +295,10 @@ export abstract class Module<Mod extends Module<Mod, Prov, ModConfig, ProvConfig
 
 	abstract settingsComponent(): FC
 
-
-	cachedProviderForApp(appId: number): Prov | undefined
-	{
-		return this.providers.find((provider) => provider.identifier === this.cache.ids[appId])
-	}
-
 	async mount(): Promise<void>
 	{
 		try
 		{
-			await this.loadData();
 			this.providers.sort((a, b) =>
 				   this.config.providers[a.identifier as keyof ProvConfigs].ordinal - this.config.providers[b.identifier as keyof ProvConfigs].ordinal
 			)
@@ -323,7 +324,6 @@ export abstract class Module<Mod extends Module<Mod, Prov, ModConfig, ProvConfig
 			{
 				await provider.dismount();
 			}
-			await this.saveData();
 		} catch (e: any)
 		{
 			this.handleError(e);
@@ -333,21 +333,10 @@ export abstract class Module<Mod extends Module<Mod, Prov, ModConfig, ProvConfig
 
 	async provide(appId: number): Promise<Data | undefined>
 	{
-		const cached = this.cachedProviderForApp(appId)
-		if (cached && cached.enabled)
-		{
-			const data = await cached.provide(appId)
-			if (data)
-			{
-				await this.provideAdditional(appId, data);
-				return data;
-			}
-		}
 		for (const provider of this.providers.filter((provider) => provider.enabled))
 		{
 			if (provider.enabled && await provider.test(appId))
 			{
-				this.cache.ids[appId] = provider.identifier as keyof ProvCaches;
 				const data = await provider.provide(appId);
 				if (data)
 					await this.provideAdditional(appId, data);
@@ -362,7 +351,15 @@ export abstract class Module<Mod extends Module<Mod, Prov, ModConfig, ProvConfig
 		return undefined
 	}
 
-	async provideAdditional(_appId: number, _data: Data): Promise<void>
+	async provideAdditional(appId: number, data: Data): Promise<void>
 	{
+		for (const provider of this.providers.filter((provider) => provider.enabled))
+		{
+			if (provider.enabled && await provider.test(appId))
+			{
+				await provider.apply(appId, data);
+				return;
+			}
+		}
 	}
 }

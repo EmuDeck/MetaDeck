@@ -1,8 +1,8 @@
-import {MetaDeckState} from "./hooks/metadataContext";
+import {MetaDeckState} from "./MetaDeckState";
 import Logger from "./logger";
 import {systemClock} from "./System";
 import {callable} from "@decky/api";
-import {ModuleCaches, ModuleConfigs} from "./modules/module";
+import {ModuleCaches, ModuleConfigs} from "./modules/Module";
 import {merge} from "lodash-es";
 
 export type ConfigData = {
@@ -40,19 +40,48 @@ export class Settings
 				install_size: true,
 				install_date: true,
 				providers: {
-					epic: {
+					egs: {
 						enabled: true,
-						ordinal: 0
+						ordinal: 0,
+						resolvers: {
+							junk: {
+								enabled: true,
+								ordinal: 0
+							},
+							nsl: {
+								enabled: true,
+								ordinal: 1
+							},
+							heroic: {
+								enabled: true,
+								ordinal: 2
+							}
+						}
 					},
 					gog: {
 						enabled: true,
-						ordinal: 1
+						ordinal: 1,
+						resolvers: {
+							junk: {
+								enabled: true,
+								ordinal: 0
+							},
+							nsl: {
+								enabled: true,
+								ordinal: 1
+							},
+							heroic: {
+								enabled: true,
+								ordinal: 2
+							}
+						}
 					},
 					igdb: {
 						enabled: true,
 						ordinal: 2,
 						fuzziness: 5,
-						overrides: {}
+						overrides: {},
+						resolvers: {}
 					}
 				}
 			},
@@ -64,7 +93,8 @@ export class Settings
 					emudeck: {
 						enabled: true,
 						ordinal: 0,
-						fuzziness: 5
+						fuzziness: 5,
+						resolvers: {}
 					}
 				}
 			}
@@ -74,19 +104,33 @@ export class Settings
 	static readonly defaultCache: CacheData = {
 		modules: {
 			metadata: {
-				ids: {},
 				data: {},
 				providers: {
-					epic: {},
-					gog: {},
-					igdb: {}
+					egs: {
+						resolvers: {
+							junk: {},
+							nsl: {},
+							heroic: {}
+						}
+					},
+					gog: {
+						resolvers: {
+							junk: {},
+							nsl: {},
+							heroic: {}
+						}
+					},
+					igdb: {
+						resolvers: {}
+					}
 				}
 			},
 			compatdata: {
-				ids: {},
 				data: {},
 				providers: {
-					emudeck: {}
+					emudeck: {
+						resolvers: {}
+					}
 				}
 			}
 		}
@@ -178,7 +222,7 @@ export class Settings
 	{
 		this.logger.debug("Reading config...");
 		const start = systemClock.getTimeMs();
-		this.configData = merge({}, Settings.defaultConfig, await this.read_config());
+		this.configData = merge({}, Settings.defaultConfig, await this.read_config() ?? {});
 		const end = systemClock.getTimeMs();
 		this.logger.debug("Read config in " + (end - start) + "ms", this.configData);
 	}
@@ -196,7 +240,7 @@ export class Settings
 	{
 		this.logger.debug("Reading cache...");
 		const start = systemClock.getTimeMs();
-		this.cacheData = merge({}, Settings.defaultCache, await this.read_cache());
+		this.cacheData = merge({}, Settings.defaultCache, await this.read_cache() ?? {});
 		const end = systemClock.getTimeMs();
 		this.logger.debug("Read cache in " + (end - start) + "ms", this.cacheData);
 	}

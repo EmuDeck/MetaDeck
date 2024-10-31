@@ -1,28 +1,31 @@
-import {ProviderCache, ProviderConfig} from "../../provider";
+import {ProviderCache, ProviderConfig} from "../../Provider";
 import {CompatdataProvider} from "../CompatdataProvider";
 import {CompatdataData, SteamDeckCompatCategory, VerifiedDBResults, YesNo} from "../../../Interfaces";
 import {FC} from "react";
 import {closestWithLimit} from "../../../util";
 import {fetchNoCors} from "@decky/api";
 import {t} from "../../../useTranslations";
-import {isEmulatedGame} from "../../../retroachievements";
+import {isEmulatedGame} from "../../../shortcuts";
+import {ResolverCache, ResolverConfig} from "../../Resolver";
 
-export interface EmuDeckCompatdataProviderConfig extends ProviderConfig
+export interface EmuDeckCompatdataProviderConfig extends ProviderConfig<{}, ResolverConfig>
 {
 	fuzziness: number
 }
 
-export interface EmuDeckCompatdataProviderCache extends ProviderCache
+export interface EmuDeckCompatdataProviderCache extends ProviderCache<{}, ResolverCache>
 {
 
 }
 
-export class EmuDeckCompatdataProvider extends CompatdataProvider
+export class EmuDeckCompatdataProvider extends CompatdataProvider<any>
 {
 	static identifier: string = "emudeck";
 	static title: string = t("providerCompatdataEmuDeck");
 	identifier: string = EmuDeckCompatdataProvider.identifier;
 	title: string = EmuDeckCompatdataProvider.title;
+
+	resolvers = [];
 
 	private verifiedDB: Record<string, VerifiedDBResults> = {};
 
@@ -44,6 +47,7 @@ export class EmuDeckCompatdataProvider extends CompatdataProvider
 
 	async mount(): Promise<void>
 	{
+		await super.mount();
 		await this.getVerifiedDB();
 	}
 
@@ -64,8 +68,6 @@ export class EmuDeckCompatdataProvider extends CompatdataProvider
 				else
 					compatCategory = SteamDeckCompatCategory.UNSUPPORTED
 			}
-
-			this.module.logger.debug("throttle")
 
 			return {
 				compat_category: compatCategory,

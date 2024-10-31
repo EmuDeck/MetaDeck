@@ -1,4 +1,4 @@
-import {useMetaDeckState} from "./hooks/metadataContext";
+import {useMetaDeckState} from "./MetaDeckState";
 import {FC} from "react";
 import {useTranslations} from "./useTranslations";
 import {ButtonItem, PanelSection, PanelSectionRow, ProgressBarWithInfo} from "@decky/ui";
@@ -28,8 +28,8 @@ export const MetaDeckComponent: FC = () =>
 						   label={loadingData.currentModule.module.title}
 						   layout="inline"
 						   bottomSeparator="none"
-						   sOperationText={loadingData.currentModule?.error ? `Error: ${loadingData.currentModule?.error.name}` : loadingData.currentModule?.game}
-						   description={loadingData.currentModule?.error ? loadingData.currentModule?.error.message : loadingData.currentModule?.description}
+						   sOperationText={loadingData.currentModule?.error ? <div style={{color: "red"}}>{`Error loading ${loadingData?.currentModule?.module?.title} for ${loadingData.currentModule?.game}: ${loadingData.currentModule?.error.name}`}</div> : loadingData.currentModule?.game}
+						   description={loadingData.currentModule?.error ? <div style={{color: "red"}}>{loadingData.currentModule?.error.stack}</div> : loadingData.currentModule?.description}
 						   nProgress={loadingData.currentModule?.percentage}
 						   sTimeRemaining={<div style={{
 							   paddingRight: "10px"

@@ -1,4 +1,4 @@
-import {Module, ModuleCache, ModuleConfig} from "../module";
+import {Module, ModuleCache, ModuleConfig} from "../Module";
 
 import {CompatdataData, SteamDeckCompatCategory} from "../../Interfaces";
 import {CompatdataProvider} from "./CompatdataProvider";
@@ -7,7 +7,7 @@ import {Mounts} from "../../System";
 import Logger from "../../logger";
 import {routePatch} from "../../RoutePatches";
 import {format, t} from "../../useTranslations";
-import {Modules} from "../../hooks/metadataContext";
+import {Modules} from "../../MetaDeckState";
 import {
 	EmuDeckCompatdataProvider,
 	EmuDeckCompatdataProviderCache,
@@ -16,13 +16,13 @@ import {
 import {afterPatch, PanelSectionRow, Patch, ToggleField} from "@decky/ui";
 import {SteamAppDetails, SteamAppOverview} from "../../SteamTypes";
 
-export interface CompatdataConfig extends ModuleConfig<CompatdataConfig, CompatdataModule, CompatdataProvider, CompatdataProviderConfigs, CompatdataProviderConfigTypes, CompatdataData>
+export interface CompatdataConfig extends ModuleConfig<CompatdataProviderConfigs, CompatdataProviderConfigTypes>
 {
 	verified: boolean,
 	notes: boolean
 }
 
-export interface CompatdataCache extends ModuleCache<CompatdataCache, CompatdataModule, CompatdataProvider, CompatdataProviderCaches, CompatdataProviderCacheTypes, CompatdataData>
+export interface CompatdataCache extends ModuleCache<CompatdataProviderCaches, CompatdataProviderCacheTypes, CompatdataData>
 {
 
 }
@@ -37,12 +37,34 @@ export interface CompatdataProviderCaches
 	emudeck: EmuDeckCompatdataProviderCache
 }
 
+export interface CompatdataProviderResolverConfigs
+{
+	emudeck: {}
+}
+
+export interface CompatdataProviderResolverCaches
+{
+	emudeck: {}
+}
+
 export type CompatdataProviderConfigTypes = CompatdataProviderConfigs[keyof CompatdataProviderConfigs]
 
 export type CompatdataProviderCacheTypes = CompatdataProviderCaches[keyof CompatdataProviderCaches]
 
 
-export class CompatdataModule extends Module<CompatdataModule, CompatdataProvider, CompatdataConfig, CompatdataProviderConfigs, CompatdataProviderConfigTypes, CompatdataCache, CompatdataProviderCaches, CompatdataProviderCacheTypes, CompatdataData>
+export class CompatdataModule extends Module<
+	   CompatdataModule,
+	   CompatdataProvider<any>,
+	   CompatdataConfig,
+	   CompatdataProviderConfigs,
+	   CompatdataProviderConfigTypes,
+	   CompatdataProviderResolverConfigs,
+	   CompatdataCache,
+	   CompatdataProviderCaches,
+	   CompatdataProviderCacheTypes,
+	   CompatdataProviderResolverCaches,
+	   CompatdataData
+>
 {
 	static identifier: string = "compatdata";
 	static title: string = t("moduleCompatdata");
@@ -50,7 +72,7 @@ export class CompatdataModule extends Module<CompatdataModule, CompatdataProvide
 	title: string = CompatdataModule.title;
 	logger: Logger = new Logger(CompatdataModule.identifier)
 
-	providers: CompatdataProvider[] = [
+	providers: CompatdataProvider<any>[] = [
 		new EmuDeckCompatdataProvider(this)
 	];
 
@@ -194,12 +216,13 @@ export class CompatdataModule extends Module<CompatdataModule, CompatdataProvide
 	async applyDetails(details: SteamAppDetails): Promise<void>
 	{
 		const compatdata = this.data[details.unAppID]
+
 		if (this.verified && this.notes && compatdata?.compat_notes)
 		{
 			details.vecDeckCompatTestResults = [{
 				test_loc_token: compatdata.compat_notes,
 				test_result: 1
-			}]
+			}];
 		}
 	}
 }

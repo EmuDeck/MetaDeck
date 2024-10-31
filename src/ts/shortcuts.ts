@@ -1,34 +1,62 @@
 import {getAppDetails} from "./util";
+import {CustomStoreCategory, StoreCategory} from "./Interfaces";
+import {call} from "@decky/api";
 
 export const romRegex = /(\/([^\/"])+)+(?!\.AppImage)(\.zip|\.7z|\.iso|\.bin|\.chd|\.cue|\.img|\.a26|\.lnx|\.ngp|\.ngc|\.3dsx|\.3ds|\.app|\.axf|\.cci|\.cxi|\.elf|\.n64|\.ndd|\.u1|\.v64|\.z64|\.nds|\.dmg|\.gbc|\.gba|\.gb|\.ciso|\.dol|\.gcm|\.gcz|\.nkit\.iso|\.rvz|\.wad|\.wia|\.wbfs|\.nes|\.fds|\.unif|\.unf|\.json|\.kp|\.nca|\.nro|\.nso|\.nsp|\.xci|\.rpx|\.wud|\.wux|\.wua|\.32x|\.cdi|\.gdi|\.m3u|\.gg|\.gen|\.md|\.smd|\.sms|\.ecm|\.mds|\.pbp|\.dump|\.gz|\.mdf|\.mrg|\.prx|\.bs|\.fig|\.sfc|\.smc|\.swx|\.pc2|\.wsc|\.ws)/
 
 export const limitedRomRegex = /(\/([^\/"])+)+(?!\.AppImage)(\.zip|\.7z|\.iso|\.bin|\.chd|\.cue|\.img|\.a26|\.lnx|\.ngp|\.ngc|\.elf|\.n64|\.ndd|\.u1|\.v64|\.z64|\.nds|\.dmg|\.gbc|\.gba|\.gb|\.ciso|\.nes|\.fds|\.unif|\.unf|\.32x|\.cdi|\.gdi|\.m3u|\.gg|\.gen|\.md|\.smd|\.sms|\.ecm|\.mds|\.pbp|\.dump|\.gz|\.mdf|\.mrg|\.prx|\.bs|\.fig|\.sfc|\.smc|\.swx|\.pc2|\.wsc|\.ws)/;
 
+export const scriptRegex = /(\/([^\/"])+)+(\.sh)/
+
+export const getLaunchCommand: (appId: number) => Promise<string> = async (appId) => {
+	const details = await getAppDetails(appId);
+	if (details == null) return "";
+	let exe: string;
+	if (
+		   details.strShortcutExe.replace(/['"]+/g, "").startsWith("/") ||
+		   details.strShortcutExe.replace(/['"]+/g, "").startsWith("~") ||
+		   details.strShortcutExe.replace(/['"]+/g, "").charAt(1) === ':'
+	)
+		exe = details.strShortcutExe;
+	else
+		exe = `${details.strShortcutStartDir}/${details.strShortcutExe}`
+	let launchCommand: string;
+	if (details.strShortcutLaunchOptions.includes("%command%"))
+		launchCommand = details.strShortcutLaunchOptions?.replace("%command%", exe);
+	else
+		launchCommand = `${exe} ${details.strShortcutLaunchOptions}`;
+	return launchCommand;
+}
+
+export const getShortcutCategories: (appId: number) => Promise<(StoreCategory | CustomStoreCategory)[]> = async (appId) => {
+	let cats: (StoreCategory | CustomStoreCategory)[] = [CustomStoreCategory.NonSteam];
+	if (await isEpicGame(appId))
+		cats.push(CustomStoreCategory.Epic);
+	if (await isGOGGame(appId))
+		cats.push(CustomStoreCategory.GOG);
+	if (await isEmulatedGame(appId))
+		cats.push(StoreCategory.FullController, CustomStoreCategory.EmuDeck);
+	if (await isJunkStoreGame(appId))
+		cats.push(CustomStoreCategory.JunkStore);
+	if (await isNSLGame(appId))
+		cats.push(CustomStoreCategory.NSL);
+	if (await isHeroicGame(appId))
+		cats.push(CustomStoreCategory.Heroic);
+	if (await isLutrisGame(appId))
+		cats.push(CustomStoreCategory.Lutris);
+	if (await isFlatpakGame(appId))
+		cats.push(CustomStoreCategory.Flatpak);
+	return cats
+}
+
 export const isEmulatedGame: (appId: number) => Promise<boolean> = async (appId) =>
 {
-	const details = await getAppDetails(appId);
-
-	let launchCommand: string
-	if (details?.strShortcutLaunchOptions?.includes("%command%"))
-		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
-	else
-		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
-
-	return romRegex.test(launchCommand);
+	return romRegex.test(await getLaunchCommand(appId));
 }
 
 export const isRetroAchievementsGame: (appId: number) => Promise<boolean> = async (appId) =>
 {
-	const details = await getAppDetails(appId);
-
-	let launchCommand: string
-	if (details?.strShortcutLaunchOptions?.includes("%command%"))
-		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
-	else
-		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
-
-	return limitedRomRegex.test(launchCommand);
-
+	return limitedRomRegex.test(await getLaunchCommand(appId));
 }
 
 export const isAchievementsGame: (appId: number) => Promise<boolean> = async (appId) =>
@@ -38,78 +66,59 @@ export const isAchievementsGame: (appId: number) => Promise<boolean> = async (ap
 
 export const isFlatpakGame: (appId: number) => Promise<boolean> = async (appId) =>
 {
-	const details = await getAppDetails(appId);
-
-	let launchCommand: string
-	if (details?.strShortcutLaunchOptions?.includes("%command%"))
-		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
-	else
-		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
-
+	let launchCommand: string = await getLaunchCommand(appId);
+	if (launchCommand == "") return false;
+	const scriptPath = launchCommand.match(scriptRegex)?.[0];
+	if (scriptPath)
+	{
+		try
+		{
+			const scriptText: string = await call("read_file", scriptPath);
+			return launchCommand.includes("flatpak") || scriptText.includes("flatpak")
+		}
+		catch (e)
+		{
+		}
+	}
 	return launchCommand.includes("flatpak");
 }
 
 export const isEpicGame: (appId: number) => Promise<boolean> = async (appId) =>
 {
-	const details = await getAppDetails(appId);
-
-	let launchCommand: string
-	if (details?.strShortcutLaunchOptions?.includes("%command%"))
-		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
-	else
-		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
+	let launchCommand: string = await getLaunchCommand(appId);
+	if (launchCommand == "") return false;
 
 	return launchCommand.includes("epic-launcher.sh") || launchCommand.includes("com.epicgames.launcher://apps/") || launchCommand.includes("heroic://launch/legendary/")
 }
 
 export const isGOGGame: (appId: number) => Promise<boolean> = async (appId) =>
 {
-	const details = await getAppDetails(appId);
-
-	let launchCommand: string
-	if (details?.strShortcutLaunchOptions?.includes("%command%"))
-		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
-	else
-		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
+	let launchCommand: string = await getLaunchCommand(appId);
+	if (launchCommand == "") return false;
 
 	return launchCommand.includes("gog-launcher.sh") || launchCommand.includes("/command=runGame /gameId=") || launchCommand.includes("heroic://launch/gog/")
 }
 
 export const isJunkStoreGame: (appId: number) => Promise<boolean> = async (appId) =>
 {
-	const details = await getAppDetails(appId);
-
-	let launchCommand: string
-	if (details?.strShortcutLaunchOptions?.includes("%command%"))
-		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
-	else
-		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
+	let launchCommand: string = await getLaunchCommand(appId);
+	if (launchCommand == "") return false;
 
 	return launchCommand.includes("epic-launcher.sh") || launchCommand.includes("gog-launcher.sh")
 }
 
 export const isNSLGame: (appId: number) => Promise<boolean> = async (appId) =>
 {
-	const details = await getAppDetails(appId);
-
-	let launchCommand: string
-	if (details?.strShortcutLaunchOptions?.includes("%command%"))
-		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
-	else
-		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
+	let launchCommand: string = await getLaunchCommand(appId);
+	if (launchCommand == "") return false;
 
 	return launchCommand.includes("com.epicgames.launcher://apps/") || launchCommand.includes("/command=runGame /gameId=")
 }
 
 export const isHeroicGame: (appId: number) => Promise<boolean> = async (appId) =>
 {
-	const details = await getAppDetails(appId);
-
-	let launchCommand: string
-	if (details?.strShortcutLaunchOptions?.includes("%command%"))
-		launchCommand = details?.strShortcutLaunchOptions?.replace("%command%", details?.strShortcutExe)
-	else
-		launchCommand = `${details?.strShortcutExe} ${details?.strShortcutLaunchOptions}`
+	let launchCommand: string = await getLaunchCommand(appId);
+	if (launchCommand == "") return false;
 
 	return launchCommand.includes("heroic://launch/legendary/") || launchCommand.includes("heroic://launch/gog/")
 }

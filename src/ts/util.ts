@@ -2,14 +2,15 @@ import {runInAction} from "mobx";
 import {SteamAppDetails, SteamAppOverview} from "./SteamTypes";
 import {closest, distance} from "fastest-levenshtein";
 
-export function stateTransaction(block: () => void) {
+export function stateTransaction<T>(block: () => T) {
 	// @ts-ignore
 	const prev: boolean = window["__mobxGlobals"].allowStateChanges
 	// @ts-ignore
 	window["__mobxGlobals"].allowStateChanges = true
-	runInAction(block)
+	const r = runInAction(block);
 	// @ts-ignore
 	window["__mobxGlobals"].allowStateChanges = prev
+	return r;
 }
 
 export function getAllNonSteamAppIds(): number[]

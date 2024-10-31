@@ -7,7 +7,7 @@ import {
 	ToggleField,
 	useParams
 } from "@decky/ui";
-import {useMetaDeckState} from "../hooks/metadataContext";
+import {useMetaDeckState} from "../MetaDeckState";
 import {format, t} from "../useTranslations";
 
 export const ProviderSettingsComponent: FC = () => {

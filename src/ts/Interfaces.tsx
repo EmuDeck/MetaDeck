@@ -24,7 +24,9 @@ export interface CompatdataData
 	compat_notes?: string,
 }
 
-export type IdDictionary = Record<number, number | string>
+export type ID = number | string
+
+export type IDDictionary = Record<number, ID>
 
 export interface Developer
 {
@@ -218,7 +220,7 @@ export const customStoreIcons: Record<CustomStoreCategory, IconType> = {
 export const customStoreTitles: Record<CustomStoreCategory, keyof (typeof languages)['en']> = {
 	[CustomStoreCategory.NonSteam]: "storeCategoriesNonSteam",
 	[CustomStoreCategory.EmuDeck]: "storeCategoriesEmuDeck",
-	[CustomStoreCategory.Epic]: "storeCategoriesEpic",
+	[CustomStoreCategory.Epic]: "storeCategoriesEGS",
 	[CustomStoreCategory.GOG]: "storeCategoriesGOG",
 	[CustomStoreCategory.NSL]: "storeCategoriesNSL",
 	[CustomStoreCategory.JunkStore]: "storeCategoriesJunkStore",

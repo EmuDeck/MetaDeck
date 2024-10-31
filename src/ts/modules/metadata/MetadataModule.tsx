@@ -1,22 +1,22 @@
-import {Module, ModuleCache, ModuleConfig} from "../module";
+import {Module, ModuleCache, ModuleConfig} from "../Module";
 import {MetadataProvider} from "./MetadataProvider";
 import {
 	IGDBMetadataProvider,
 	IGDBMetadataProviderCache,
 	IGDBMetadataProviderConfig
-} from "./providers/IGDBMetadataProvider";
+} from "./providers/IGDB/IGDBMetadataProvider";
 import {CustomStoreCategory, MetadataData, StoreCategory} from "../../Interfaces";
 import {
-	EpicMetadataProvider,
-	EpicMetadataProviderCache,
-	EpicMetadataProviderConfig
-} from "./providers/EpicMetadataProvider";
+	EGSMetadataProvider,
+	EGSMetadataProviderCache,
+	EGSMetadataProviderConfig, EGSMetadataProviderResolverCaches, EGSMetadataProviderResolverConfigs
+} from "./providers/Epic/EGSMetadataProvider";
 import {truncate} from "lodash-es";
 import {
 	GOGMetadataProvider,
 	GOGMetadataProviderCache,
-	GOGMetadataProviderConfig
-} from "./providers/GOGMetadataProvider";
+	GOGMetadataProviderConfig, GOGMetadataProviderResolverCaches, GOGMetadataProviderResolverConfigs
+} from "./providers/GOG/GOGMetadataProvider";
 import {Mounts} from "../../System";
 import {
 	afterPatch,
@@ -31,25 +31,21 @@ import {
 	ToggleField
 } from "@decky/ui";
 import {format, t} from "../../useTranslations";
-import {getAppDetails, stateTransaction} from "../../util";
+import {stateTransaction} from "../../util";
 import {FC, Fragment, ReactElement, ReactNode, useState} from "react";
 import {Markdown} from "../../markdown";
 import {SteamAppDetails, SteamAppOverview} from "../../SteamTypes";
 import {routePatch} from "../../RoutePatches";
 // import {addStyle, removeStyle} from "../../styleInjector";
 import Logger from "../../logger";
-import {callable} from "@decky/api";
 import {
-	isEmulatedGame, isEpicGame,
-	isFlatpakGame, isGOGGame, isHeroicGame, isJunkStoreGame, isLutrisGame, isNSLGame,
-	romRegex
-} from "../../retroachievements";
+	getShortcutCategories
+} from "../../shortcuts";
 import {CustomFeature} from "./CustomFeature";
-import {removeAfterAndIncluding, removeBeforeAndIncluding} from "./providers/GamesDBResult";
 
 // import mdx from "@mdxeditor/editor/style.css";
 
-export interface MetadataConfig extends ModuleConfig<MetadataConfig, MetadataModule, MetadataProvider, MetadataProviderConfigs, MetadataProviderConfigTypes, MetadataData>
+export interface MetadataConfig extends ModuleConfig<MetadataProviderConfigs, MetadataProviderConfigTypes>
 {
 	type_override: boolean,
 	descriptions: boolean,
@@ -63,7 +59,7 @@ export interface MetadataConfig extends ModuleConfig<MetadataConfig, MetadataMod
 	install_date: boolean
 }
 
-export interface MetadataCache extends ModuleCache<MetadataCache, MetadataModule, MetadataProvider, MetadataProviderCaches, MetadataProviderCacheTypes, MetadataData>
+export interface MetadataCache extends ModuleCache<MetadataProviderCaches, MetadataProviderCacheTypes, MetadataData>
 {
 
 }
@@ -72,24 +68,48 @@ export interface MetadataProviderConfigs
 {
 	igdb: IGDBMetadataProviderConfig,
 	gog: GOGMetadataProviderConfig,
-	epic: EpicMetadataProviderConfig
+	egs: EGSMetadataProviderConfig
 }
 
 export interface MetadataProviderCaches
 {
 	igdb: IGDBMetadataProviderCache,
 	gog: GOGMetadataProviderCache,
-	epic: EpicMetadataProviderCache
+	egs: EGSMetadataProviderCache
+}
+
+export interface MetadataProviderResolverConfigs
+{
+	igdb: {},
+	gog: GOGMetadataProviderResolverConfigs,
+	egs: EGSMetadataProviderResolverConfigs
+}
+
+export interface MetadataProviderResolverCaches
+{
+	igdb: {},
+	gog: GOGMetadataProviderResolverCaches,
+	egs: EGSMetadataProviderResolverCaches
 }
 
 export type MetadataProviderConfigTypes = MetadataProviderConfigs[keyof MetadataProviderConfigs]
 
 export type MetadataProviderCacheTypes = MetadataProviderCaches[keyof MetadataProviderCaches]
 
-export class MetadataModule extends Module<MetadataModule, MetadataProvider, MetadataConfig, MetadataProviderConfigs, MetadataProviderConfigTypes, MetadataCache, MetadataProviderCaches, MetadataProviderCacheTypes, MetadataData>
+export class MetadataModule extends Module<
+	   MetadataModule,
+	   MetadataProvider<any>,
+	   MetadataConfig,
+	   MetadataProviderConfigs,
+	   MetadataProviderConfigTypes,
+	   MetadataProviderResolverConfigs,
+	   MetadataCache,
+	   MetadataProviderCaches,
+	   MetadataProviderCacheTypes,
+	   MetadataProviderResolverCaches,
+	   MetadataData
+>
 {
-
-
 	static identifier: string = "metadata";
 	static title: string = t("moduleMetadata");
 	identifier: string = MetadataModule.identifier;
@@ -97,8 +117,8 @@ export class MetadataModule extends Module<MetadataModule, MetadataProvider, Met
 
 	logger: Logger = new Logger(MetadataModule.identifier)
 
-	providers: MetadataProvider[] = [
-		new EpicMetadataProvider(this),
+	providers: MetadataProvider<any>[] = [
+		new EGSMetadataProvider(this),
 		new GOGMetadataProvider(this),
 		new IGDBMetadataProvider(this)
 	];
@@ -542,15 +562,7 @@ export class MetadataModule extends Module<MetadataModule, MetadataProvider, Met
 				}
 
 				return ret;
-			})
-
-			// const categoryPatch = createReactTreePatcher([
-			// 	()
-			// ], (_, ret) => {
-			// 	return ret
-			// })
-			//
-			// afterPatch(routeProps, "renderFunc", categoryPatch);
+			});
 
 			return tree;
 		}))
@@ -569,39 +581,6 @@ export class MetadataModule extends Module<MetadataModule, MetadataProvider, Met
 			return props;
 		}))
 
-		// const appInfoHook = afterPatch(AppInfoContainer.prototype, 'render', (_: Record<string, unknown>[], component1: any) =>
-		// {
-		// 	const element = findInReactTree(component1, x => x?.props?.overview);
-		// 	logger.log(element.props.overview)
-		//
-		// 	return component1;
-		// });
-
-
-		// mounts.addPageMount("/metadeck/metadata/:appid", () => <ChangeMetadataComponent manager={metadataManager}/>)
-
-		// mounts.addMount({
-		// 	mount: async function (): Promise<void> {
-		// 		window.MetaDeck = {
-		// 			Events: eventBus,
-		// 			Manager: metadataManager
-		// 		}
-		// 		eventBus.on("AppOverviewChanged",  ({appid}) => {
-		// 			if (!Object.is(metadataManager.metadata, {}) && metadataManager.isReady(appid))
-		// 				void metadataManager.fetchMetadataAsync(appid)
-		// 		})
-		// 		void (async () =>
-		// 		{
-		// 			if (!await checkOnlineStatus()) await waitForOnline();
-		// 			await metadataManager.init()
-		// 		})();
-		// 	},
-		// 	dismount: async function (): Promise<void> {
-		// 		delete window.MetaDeck;
-		// 		void metadataManager.deinit();
-		// 	}
-		// });
-
 		// mounts.addMount({
 		// 	mount()
 		// 	{
@@ -613,12 +592,6 @@ export class MetadataModule extends Module<MetadataModule, MetadataProvider, Met
 		// 	}
 		// })
 	}
-
-
-	// private file_size = callable<[string], number>("file_size")
-	// private file_date = callable<[string], number>("file_date")
-	// private directory_size = callable<[string], number>("directory_size")
-	// private directory_date = callable<[string], number>("directory_date")
 
 	progressDescription(data?: MetadataData): string
 	{
@@ -720,7 +693,7 @@ export class MetadataModule extends Module<MetadataModule, MetadataProvider, Met
 
 	get titleHeader(): boolean
 	{
-		return this.config.markdown
+		return this.config.title_header
 	}
 
 	set titleHeader(title_header: boolean)
@@ -863,21 +836,7 @@ export class MetadataModule extends Module<MetadataModule, MetadataProvider, Met
 	async provideDefault(appId: number): Promise<MetadataData | undefined>
 	{
 		const overview = appStore.GetAppOverviewByAppID(appId);
-		const cats: (StoreCategory | CustomStoreCategory)[] = [CustomStoreCategory.NonSteam];
-		// if (await isAchievementsGame(appId))
-		// 	cats.push(StoreCategory.Achievements);
-		if (await isEmulatedGame(appId))
-			cats.push(StoreCategory.FullController, CustomStoreCategory.EmuDeck);
-		if (await isJunkStoreGame(appId))
-			cats.push(CustomStoreCategory.JunkStore);
-		if (await isNSLGame(appId))
-			cats.push(CustomStoreCategory.NSL);
-		if (await isHeroicGame(appId))
-			cats.push(CustomStoreCategory.Heroic);
-		if (await isLutrisGame(appId))
-			cats.push(CustomStoreCategory.Lutris);
-		if (await isFlatpakGame(appId))
-			cats.push(CustomStoreCategory.Flatpak);
+		const cats: (StoreCategory | CustomStoreCategory)[] = await getShortcutCategories(appId);
 
 		return {
 			title: overview.display_name,
@@ -887,31 +846,31 @@ export class MetadataModule extends Module<MetadataModule, MetadataProvider, Met
 		}
 	}
 
-	private file_size: (path: string) => Promise<number> = callable("file_size");
-	private directory_size: (path: string) => Promise<number> = callable("directory_size");
-	private file_date: (path: string) => Promise<number> = callable("file_date");
-	private nsl_egs_data: (id: string) => Promise<{
-		"namespace": string,
-		"install_size": number,
-		"install_date": number,
-		'install_path': string
-	}> = callable("nsl_egs_data");
-	private nsl_gog_data: (id: number) => Promise<{
-		"install_size": number,
-		"install_date": number,
-		'install_path': string
-	}> = callable("nsl_gog_data");
-	private heroic_egs_data: (id: string) => Promise<{
-		"namespace": string,
-		"install_size": number,
-		"install_date": number,
-		'install_path': string
-	}> = callable("heroic_egs_data");
-	private heroic_gog_data: (id: number) => Promise<{
-		"install_size": number,
-		"install_date": number,
-		'install_path': string
-	}> = callable("heroic_gog_data");
+	// private file_size: (path: string) => Promise<number> = callable("file_size");
+	// private directory_size: (path: string) => Promise<number> = callable("directory_size");
+	// private file_date: (path: string) => Promise<number> = callable("file_date");
+	// private nsl_egs_data: (id: string) => Promise<{
+	// 	"namespace": string,
+	// 	"install_size": number,
+	// 	"install_date": number,
+	// 	'install_path': string
+	// }> = callable("nsl_egs_data");
+	// private nsl_gog_data: (id: number) => Promise<{
+	// 	"install_size": number,
+	// 	"install_date": number,
+	// 	'install_path': string
+	// }> = callable("nsl_gog_data");
+	// private heroic_egs_data: (id: string) => Promise<{
+	// 	"namespace": string,
+	// 	"install_size": number,
+	// 	"install_date": number,
+	// 	'install_path': string
+	// }> = callable("heroic_egs_data");
+	// private heroic_gog_data: (id: number) => Promise<{
+	// 	"install_size": number,
+	// 	"install_date": number,
+	// 	'install_path': string
+	// }> = callable("heroic_gog_data");
 
 	// private dirname(path: string): string
 	// {
@@ -942,64 +901,60 @@ export class MetadataModule extends Module<MetadataModule, MetadataProvider, Met
 	// 	return path.slice(0, end);
 	// }
 
-	async provideAdditional(appId: number, data: MetadataData): Promise<void>
-	{
-		const details = await getAppDetails(appId);
-		if (details)
-		{
-			let launchCommand: string
-			if (details.strShortcutLaunchOptions.includes("%command%"))
-				launchCommand = details.strShortcutLaunchOptions.replace("%command%", details.strShortcutExe)
-			else
-				launchCommand = `${details.strShortcutExe} ${details.strShortcutLaunchOptions}`
-
-			if (await isEmulatedGame(appId))
-			{
-				data.install_size = await this.file_size(launchCommand.match(romRegex)?.[0]!!)
-				data.install_date = await this.file_date(launchCommand.match(romRegex)?.[0]!!)
-			}
-			else if (await isJunkStoreGame(appId))
-			{
-				data.install_size = await this.directory_size(details.strShortcutStartDir.replace(/['"]+/g, ""));
-				data.install_date = await this.file_date(details.strShortcutExe.replace(/['"]+/g, ""));
-			}
-			else if (await isNSLGame(appId))
-			{
-				if (await isEpicGame(appId))
-				{
-					const id = removeAfterAndIncluding(removeBeforeAndIncluding(launchCommand, "com.epicgames.launcher://apps/"), "?action").trim();
-					const egs_data = await this.nsl_egs_data(id);
-					data.install_size = egs_data.install_size;
-					data.install_date = egs_data.install_date;
-				}
-				else if (await isGOGGame(appId))
-				{
-					// const path = details.strShortcutStartDir.replace(/['"]+/g, "") + removeAfterAndIncluding(removeBeforeAndIncluding(launchCommand, "/path=\"C:\\Program Files (x86)\\GOG Galaxy\\"), "\"").trim().replace(/\\+/g, "/");
-					// data.install_size = await this.directory_size(this.dirname(path));
-					// data.install_date = await this.file_date(path);
-					const id = removeAfterAndIncluding(removeBeforeAndIncluding(launchCommand, "/gameId="), "/path=").trim();
-					const gog_data = await this.nsl_gog_data(+id);
-					data.install_size = gog_data.install_size;
-					data.install_date = gog_data.install_date;
-				}
-			}
-			else if (await isHeroicGame(appId))
-			{
-				if (await isEpicGame(appId))
-				{
-					const id = removeAfterAndIncluding(removeBeforeAndIncluding(launchCommand, "heroic://launch/legendary/"), "\"").trim();
-					const egs_data = await this.heroic_egs_data(id);
-					data.install_size = egs_data.install_size;
-					data.install_date = egs_data.install_date;
-				}
-				else if (await isGOGGame(appId))
-				{
-					const id = removeAfterAndIncluding(removeBeforeAndIncluding(launchCommand, "heroic://launch/gog/"), "\"").trim();
-					const gog_data = await this.heroic_gog_data(+id);
-					data.install_size = gog_data.install_size;
-					data.install_date = gog_data.install_date;
-				}
-			}
-		}
-	}
+	// async provideAdditional(appId: number, _data: MetadataData): Promise<void>
+	// {
+	// 	const details = await getAppDetails(appId);
+	// 	if (details)
+	// 	{
+	// 		// let launchCommand: string = await getLaunchCommand(appId);
+	//
+	// 		if (await isEmulatedGame(appId))
+	// 		{
+	// 			// data.install_size = await this.file_size(launchCommand.match(romRegex)?.[0]!!)
+	// 			// data.install_date = await this.file_date(launchCommand.match(romRegex)?.[0]!!)
+	// 		}
+	// 		else if (await isJunkStoreGame(appId))
+	// 		{
+	// 			// data.install_size = await this.directory_size(details.strShortcutStartDir.replace(/['"]+/g, ""));
+	// 			// data.install_date = await this.file_date(details.strShortcutExe.replace(/['"]+/g, ""));
+	// 		}
+	// 		else if (await isNSLGame(appId))
+	// 		{
+	// 			if (await isEpicGame(appId))
+	// 			{
+	// 				// const id = removeAfterAndIncluding(removeBeforeAndIncluding(launchCommand, "com.epicgames.launcher://apps/"), "?action").trim();
+	// 				// const egs_data = await this.nsl_egs_data(id);
+	// 				// data.install_size = egs_data.install_size;
+	// 				// data.install_date = egs_data.install_date;
+	// 			}
+	// 			else if (await isGOGGame(appId))
+	// 			{
+	// 				// const path = details.strShortcutStartDir.replace(/['"]+/g, "") + removeAfterAndIncluding(removeBeforeAndIncluding(launchCommand, "/path=\"C:\\Program Files (x86)\\GOG Galaxy\\"), "\"").trim().replace(/\\+/g, "/");
+	// 				// data.install_size = await this.directory_size(this.dirname(path));
+	// 				// data.install_date = await this.file_date(path);
+	// 				// const id = removeAfterAndIncluding(removeBeforeAndIncluding(launchCommand, "/gameId="), "/path=").trim();
+	// 				// const gog_data = await this.nsl_gog_data(+id);
+	// 				// data.install_size = gog_data.install_size;
+	// 				// data.install_date = gog_data.install_date;
+	// 			}
+	// 		}
+	// 		else if (await isHeroicGame(appId))
+	// 		{
+	// 			if (await isEpicGame(appId))
+	// 			{
+	// 				// const id = removeAfterAndIncluding(removeBeforeAndIncluding(launchCommand, "heroic://launch/legendary/"), "\"").trim();
+	// 				// const egs_data = await this.heroic_egs_data(id);
+	// 				// data.install_size = egs_data.install_size;
+	// 				// data.install_date = egs_data.install_date;
+	// 			}
+	// 			else if (await isGOGGame(appId))
+	// 			{
+	// 				// const id = removeAfterAndIncluding(removeBeforeAndIncluding(launchCommand, "heroic://launch/gog/"), "\"").trim();
+	// 				// const gog_data = await this.heroic_gog_data(+id);
+	// 				// data.install_size = gog_data.install_size;
+	// 				// data.install_date = gog_data.install_date;
+	// 			}
+	// 		}
+	// 	}
+	// }
 }

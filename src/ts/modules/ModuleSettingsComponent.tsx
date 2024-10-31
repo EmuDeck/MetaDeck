@@ -5,15 +5,15 @@ import {
 	PanelSection,
 	PanelSectionRow, ToggleField
 } from "@decky/ui";
-import {Module} from "./module";
-import {Provider} from "./provider";
-import {useMetaDeckState} from "../hooks/metadataContext";
+import {Module} from "./Module";
+import {Provider} from "./Provider";
+import {Modules, useMetaDeckState} from "../MetaDeckState";
 import {format, t} from "../useTranslations";
 
 export interface ModuleSettingsProps
 {
-	module: Module<any, any, any, any, any, any, any, any, any>,
-	providers: Provider<any, any, any, any, any, any, any, any, any>[]
+	module: Module<any, any, any, any, any, any, any, any, any, any, any>,
+	providers: Provider<any, any, any, any, any, any, any, any, any, any, any, any>[]
 }
 
 export const ModuleSettingsComponent: FC<ModuleSettingsProps> = ({module}) => {
@@ -39,7 +39,7 @@ export const ModuleSettingsComponent: FC<ModuleSettingsProps> = ({module}) => {
 							 module.enabled = checked;
 							 for (let mod of Object.values(modules))
 							 {
-								 mod.unmetDependency = mod.dependencies.map((key) => modules[key]).some((mod2) => !mod2.isValid)
+								 mod.unmetDependency = mod.dependencies.map((key: keyof Modules) => modules[key]).some((mod2: Modules[keyof Modules]) => !mod2.isValid)
 							 }
 						 }}
 						 description={disabled ?

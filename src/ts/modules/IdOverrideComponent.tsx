@@ -3,16 +3,16 @@ import {
 	DialogButton, Dropdown,
 	DropdownOption, Field, Focusable, SteamSpinner
 } from "@decky/ui";
-import {useMetaDeckState} from "../hooks/metadataContext";
+import {useMetaDeckState} from "../MetaDeckState";
 import {FaPlus, FaTrash} from "react-icons/fa";
-import {IdDictionary} from "../Interfaces";
+import {IDDictionary} from "../Interfaces";
 import {t} from "../useTranslations";
 
 export interface IdOverrideProps<T extends number | string>
 {
-	value: IdDictionary,
+	value: IDDictionary,
 	resultsForApp: (appId: number) => Promise<Record<number, Entry<T>>>,
-	onChange: (overrides: IdDictionary) => void
+	onChange: (overrides: IDDictionary) => void
 }
 
 export interface Entry<T extends number | string>

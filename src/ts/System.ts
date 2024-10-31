@@ -5,6 +5,13 @@ import {EventBus} from "./events";
 import {routerHook} from "@decky/api";
 import {Patch} from "@decky/ui";
 import Logger from "./logger";
+import {
+	name
+} from "@decky/manifest"
+
+import {
+	version
+} from "@decky/pkg"
 
 export const systemClock: Clock = {
 	getTimeMs() {
@@ -39,11 +46,9 @@ export class Mounts implements AsyncMountable
 	private mounts: Array<Mountable | AsyncMountable> = []
 	private logger: Logger;
 	private eventBus: EventBus
-	private clock: Clock;
-	constructor(eventBus: EventBus, logger: Logger, clock: Clock = systemClock) {
+	constructor(eventBus: EventBus, logger: Logger) {
 		this.logger = logger;
 		this.eventBus = eventBus
-		this.clock = clock;
 	}
 
 	addMount(mount: Mountable | AsyncMountable): void {
@@ -79,12 +84,12 @@ export class Mounts implements AsyncMountable
 		for (let mount of this.mounts) {
 			await mount.mount()
 		}
-		await this.eventBus.emit("Mount", {createdAt: this.clock.getTimeMs(), mounts: this.mounts})
+		await this.eventBus.emit("Mount", {createdAt: systemClock.getTimeMs(), mounts: this.mounts})
 	}
 
 	async dismount()
 	{
-		await this.eventBus.emit("Dismount", {createdAt: this.clock.getTimeMs(), mounts: this.mounts})
+		await this.eventBus.emit("Dismount", {createdAt: systemClock.getTimeMs(), mounts: this.mounts})
 		for (let mount of this.mounts) {
 			await mount.dismount()
 		}
@@ -98,17 +103,17 @@ export class Mounts implements AsyncMountable
 				   (async function () {
 					   if (await waitForServicesInitialized())
 					   {
-						   self.logger.log(`Initializing plugin for ${username}`);
-						   await self.mount()
+						   self.logger.log(`Constructing ${name} v${version} for ${username}`);
+						   await self.mount();
 					   }
-				   })().catch(err => self.logger.error("Error while initializing plugin", err));
+				   })().catch(err => self.logger.error(`Error while constructing ${name} v${version}`, err));
 			   },
 			   function () {
 				   {
 					   (async function () {
-						   self.logger.log("Deinitializing plugin");
+						   self.logger.log(`Deconstructing ${name} v${version}`);
 						   await self.dismount()
-					   })().catch(err => self.logger.error("Error while deinitializing plugin", err));
+					   })().catch(err => self.logger.error(`Error while deconstructing ${name} v${version}`, err));
 				   }
 			   }
 		);

@@ -1,16 +1,15 @@
-import {Provider} from "../Provider";
-import {MetadataData} from "../../Interfaces";
+import {Resolver} from "../Resolver";
 import {
 	MetadataCache,
 	MetadataConfig,
-	MetadataModule,
-	MetadataProviderCaches, MetadataProviderCacheTypes,
+	MetadataModule, MetadataProviderCaches, MetadataProviderCacheTypes,
 	MetadataProviderConfigs,
 	MetadataProviderConfigTypes, MetadataProviderResolverCaches, MetadataProviderResolverConfigs
 } from "./MetadataModule";
-import {Resolver} from "../Resolver";
+import {MetadataProvider} from "./MetadataProvider";
+import {MetadataData} from "../../Interfaces";
 
-export abstract class MetadataProvider<Res extends Resolver<
+export abstract class MetadataProviderResolver<Res extends Resolver<
 	   MetadataModule,
 	   MetadataProvider<Res>,
 	   Res,
@@ -23,7 +22,7 @@ export abstract class MetadataProvider<Res extends Resolver<
 	   MetadataProviderCacheTypes,
 	   MetadataProviderResolverCaches,
 	   MetadataData
->> extends Provider<
+>> extends Resolver<
 	   MetadataModule,
 	   MetadataProvider<Res>,
 	   Res,
@@ -38,4 +37,5 @@ export abstract class MetadataProvider<Res extends Resolver<
 	   MetadataData
 >
 {
+
 }

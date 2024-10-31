@@ -1,53 +1,57 @@
-import {MetadataProvider} from "../MetadataProvider";
+import {MetadataProvider} from "../../MetadataProvider";
 import {
 	CustomStoreCategory,
 	Developer,
-	IdDictionary,
+	IDDictionary,
 	MetadataData,
 	Publisher,
 	StoreCategory
-} from "../../../Interfaces";
-import {ProviderCache, ProviderConfig} from "../../provider";
+} from "../../../../Interfaces";
+import {ProviderCache, ProviderConfig} from "../../../Provider";
 import {Company, Game, GameMode, InvolvedCompany, MultiplayerMode} from "igdb-api-types";
-import Logger from "../../../logger";
+import Logger from "../../../../logger";
 import {FC, Fragment, useState} from "react";
 import {PanelSectionRow, SliderField} from "@decky/ui";
-import {closestWithLimit, distanceWithLimit} from "../../../util";
-import {Entry, IdOverrideComponent} from "../../IdOverrideComponent";
-import {fetchNoCors} from "@decky/api";
-import {t} from "../../../useTranslations";
-import {isEmulatedGame, isFlatpakGame} from "../../../retroachievements";
+import {closestWithLimit, distanceWithLimit} from "../../../../util";
+import {Entry, IdOverrideComponent} from "../../../IdOverrideComponent";
+import {callable, fetchNoCors} from "@decky/api";
+import {t} from "../../../../useTranslations";
+import {getLaunchCommand, getShortcutCategories, isEmulatedGame, romRegex} from "../../../../shortcuts";
+import {ResolverCache, ResolverConfig} from "../../../Resolver";
+import {MetadataProviderConfigs} from "../../MetadataModule";
 
-export interface IGDBMetadataProviderConfig extends ProviderConfig
+export interface IGDBMetadataProviderConfig extends ProviderConfig<{}, ResolverConfig>
 {
 	fuzziness: number,
-	overrides: IdDictionary
+	overrides: IDDictionary
 }
 
-export interface IGDBMetadataProviderCache extends ProviderCache
+export interface IGDBMetadataProviderCache extends ProviderCache<{}, ResolverCache>
 {
 }
 
 const API_URL = "https://p8peoy2h8d.execute-api.us-west-2.amazonaws.com/production/v4"
 const API_KEY = "oVlXsxJS8G6ZSLuBuVbZjJYjLCjIcnSX4yLFr0d0"
 
-export class IGDBMetadataProvider extends MetadataProvider
+export class IGDBMetadataProvider extends MetadataProvider<any>
 {
 
-	static identifier: string = "igdb";
+	static identifier: keyof MetadataProviderConfigs = "igdb";
 	static title: string = t("providerMetadataIGDB");
-	identifier: string = IGDBMetadataProvider.identifier;
+	identifier: keyof MetadataProviderConfigs = IGDBMetadataProvider.identifier;
 	title: string = IGDBMetadataProvider.title;
+
+	resolvers = []
 
 	logger: Logger = new Logger(IGDBMetadataProvider.identifier)
 
 
-	get overrides(): IdDictionary
+	get overrides(): IDDictionary
 	{
 		return this.module.config.providers.igdb.overrides;
 	}
 
-	set overrides(data: IdDictionary)
+	set overrides(data: IDDictionary)
 	{
 		this.module.config.providers.igdb.overrides = data;
 		void this.module.saveData();
@@ -243,12 +247,7 @@ export class IGDBMetadataProvider extends MetadataProvider
 			const game = games.reverse().pop();
 			if (game)
 			{
-				// if (await isAchievementsGame(appId))
-				// 	game.store_categories.push(StoreCategory.Achievements)
-				if (await isEmulatedGame(appId))
-					game.store_categories.push(StoreCategory.FullController, CustomStoreCategory.EmuDeck);
-				if (await isFlatpakGame(appId))
-					game.store_categories.push(CustomStoreCategory.Flatpak);
+				game.store_categories = game.store_categories.concat(await getShortcutCategories(appId));
 			}
 			this.logger.debug(game);
 			return game
@@ -276,6 +275,23 @@ export class IGDBMetadataProvider extends MetadataProvider
 			}
 			return ret;
 		} else return undefined;
+	}
+
+	private file_size: (path: string) => Promise<number> = callable("file_size");
+	private file_date: (path: string) => Promise<number> = callable("file_date");
+
+	async apply(appId: number, data: MetadataData): Promise<void>
+	{
+		const launchCommand = await getLaunchCommand(appId);
+		if (await isEmulatedGame(appId))
+		{
+			const path = launchCommand.match(romRegex)?.[0]
+			if (path)
+			{
+				data.install_size = await this.file_size(path);
+				data.install_date = await this.file_date(path);
+			}
+		}
 	}
 
 	settingsComponent(): FC
@@ -311,7 +327,7 @@ export class IGDBMetadataProvider extends MetadataProvider
 							 }}
 							 resultsForApp={async (appId) => {
 								 const ret: Record<number, Entry<number>> = {}
-								 for (const [id, value] of Object.entries(await this.throttle(() => this.getAllMetadataForGame(appId))?? []))
+								 for (const [id, value] of Object.entries(await this.throttle(() => this.getAllMetadataForGame(appId)) ?? []))
 								 {
 									 ret[+id] = {
 										 label: appStore.GetAppOverviewByAppID(appId).display_name,
