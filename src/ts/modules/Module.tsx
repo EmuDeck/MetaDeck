@@ -60,8 +60,15 @@ export abstract class Module<
 
 	abstract providers: Prov[];
 
-	abstract config: ModConfig;
-	abstract cache: ModCache;
+	get config(): ModConfig
+	{
+		return this.state.settings.config.modules[this.identifier as keyof typeof this.state.settings.config.modules] as unknown as ModConfig;
+	}
+
+	get cache(): ModCache
+	{
+		return this.state.settings.cache.modules[this.identifier as keyof typeof this.state.settings.cache.modules] as unknown as ModCache;
+	}
 
 	dependencies: (keyof Modules)[] = []
 
@@ -299,9 +306,7 @@ export abstract class Module<
 	{
 		try
 		{
-			this.providers.sort((a, b) =>
-				   this.config.providers[a.identifier as keyof ProvConfigs].ordinal - this.config.providers[b.identifier as keyof ProvConfigs].ordinal
-			)
+			this.providers.sort((a, b) => a.config.ordinal - b.config.ordinal)
 			if (this.enabled)
 			{
 				for (const provider of this.providers)

@@ -38,11 +38,23 @@ export abstract class Provider<
 	{
 		return this._state;
 	}
+
 	private readonly _module: Mod;
 	get module(): Mod
 	{
 		return this._module;
 	}
+
+	get config(): ProvConfig
+	{
+		return this.module.config.providers[this.identifier as keyof ProvConfigs];
+	}
+
+	get cache(): ProvCache
+	{
+		return this.module.cache.providers[this.identifier as keyof ProvCaches];
+	}
+
 	abstract identifier: string
 	abstract title: string
 
@@ -66,10 +78,7 @@ export abstract class Provider<
 	{
 		try
 		{
-			this.resolvers.sort((a, b) =>
-				   (this.module.config.providers[this.identifier as keyof ProvConfigs].resolvers[a.identifier as keyof ProvResConfigs[keyof ProvResConfigs]] as ResolverConfig).ordinal
-				   - (this.module.config.providers[this.identifier as keyof ProvConfigs].resolvers[b.identifier as keyof ProvResConfigs[keyof ProvResConfigs]] as ResolverConfig).ordinal
-			)
+			this.resolvers.sort((a, b) => a.config.ordinal - b.config.ordinal)
 			if (this.enabled)
 			{
 				for (const resolver of this.resolvers)
@@ -86,13 +95,18 @@ export abstract class Provider<
 
 	async dismount(): Promise<void>
 	{
-		if (this.enabled)
+		try
 		{
-			for (const resolver of this.resolvers)
+			if (this.enabled)
 			{
-				if (resolver.enabled)
+				for (const resolver of this.resolvers)
+				{
 					await resolver.dismount();
+				}
 			}
+		} catch (e: any)
+		{
+			this.handleError(e);
 		}
 	}
 

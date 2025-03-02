@@ -14,24 +14,30 @@ import {FC, Fragment, useState} from "react";
 import {PanelSectionRow, SliderField} from "@decky/ui";
 import {closestWithLimit, distanceWithLimit} from "../../../../util";
 import {Entry, IdOverrideComponent} from "../../../IdOverrideComponent";
-import {callable, fetchNoCors} from "@decky/api";
+import {callable} from "@decky/api";
 import {t} from "../../../../useTranslations";
 import {getLaunchCommand, getShortcutCategories, isEmulatedGame, romRegex} from "../../../../shortcuts";
 import {ResolverCache, ResolverConfig} from "../../../Resolver";
 import {MetadataProviderConfigs} from "../../MetadataModule";
+import {IGDBApiServerComponent} from "./IGDBApiServerComponent";
+
+export interface APIServer
+{
+	name: string,
+	url: string
+}
 
 export interface IGDBMetadataProviderConfig extends ProviderConfig<{}, ResolverConfig>
 {
 	fuzziness: number,
+	api_server: APIServer | undefined,
+	custom_api_servers: APIServer[]
 	overrides: IDDictionary
 }
 
 export interface IGDBMetadataProviderCache extends ProviderCache<{}, ResolverCache>
 {
 }
-
-const API_URL = "https://p8peoy2h8d.execute-api.us-west-2.amazonaws.com/production/v4"
-const API_KEY = "oVlXsxJS8G6ZSLuBuVbZjJYjLCjIcnSX4yLFr0d0"
 
 export class IGDBMetadataProvider extends MetadataProvider<any>
 {
@@ -45,6 +51,27 @@ export class IGDBMetadataProvider extends MetadataProvider<any>
 
 	logger: Logger = new Logger(IGDBMetadataProvider.identifier)
 
+	get apiServer(): APIServer | undefined
+	{
+		return this.module.config.providers.igdb.api_server;
+	}
+
+	set apiServer(apiServer: APIServer | undefined)
+	{
+		this.module.config.providers.igdb.api_server = apiServer;
+		void this.module.saveData();
+	}
+
+	get customApiServers(): APIServer[]
+	{
+		return this.module.config.providers.igdb.custom_api_servers;
+	}
+
+	set customApiServers(customApiServers: APIServer[])
+	{
+		this.module.config.providers.igdb.custom_api_servers = customApiServers;
+		void this.module.saveData();
+	}
 
 	get overrides(): IDDictionary
 	{
@@ -192,14 +219,14 @@ export class IGDBMetadataProvider extends MetadataProvider<any>
 
 	private async search(title: string): Promise<MetadataData[]>
 	{
-
-		const response = (await fetchNoCors(`${API_URL}/games`, {
+		if (this.apiServer == undefined) return[]
+		const response = (await fetch(`${this.apiServer.url}/search`, {
 			method: "POST",
 			headers: {
 				"Accept": "application/json",
-				"x-api-key": API_KEY
+				"Content-Type": "application/json"
 			},
-			body: `search \"${title}\"; limit 20; fields *, involved_companies.*, involved_companies.company.*, game_modes.*, multiplayer_modes.*, platforms.*;`
+			body: JSON.stringify({title})
 		}));
 		if (response.ok)
 		{
@@ -212,7 +239,8 @@ export class IGDBMetadataProvider extends MetadataProvider<any>
 		} else if (response.status == 429)
 		{
 			return this.throttle(() => this.search(title));
-		} else throw Error(`Could not find metadata for "${title}": \n${await response.text()}`);
+		} else if (response.status == 500) return[]
+		else throw Error(`Could not find metadata for "${title}": \n${await response.text()}`);
 	}
 
 	public async getMetadataForGame(appId: number): Promise<MetadataData | undefined>
@@ -296,6 +324,8 @@ export class IGDBMetadataProvider extends MetadataProvider<any>
 
 	settingsComponent(): FC
 	{
+		const [apiServer, setApiServer] = useState(this.apiServer);
+		const [customApiServers, setCustomApiServers] = useState(this.customApiServers);
 		const [fuzziness, setFuzziness] = useState(this.fuzziness);
 		const [overrides, setOverrides] = useState(this.overrides);
 		return () => (
@@ -318,10 +348,23 @@ export class IGDBMetadataProvider extends MetadataProvider<any>
 					   />
 				   </PanelSectionRow>
 				   <PanelSectionRow>
+					   <IGDBApiServerComponent
+							 server={apiServer}
+							 customServers={customApiServers}
+							 onServerChange={(server) => {
+								 setApiServer(server)
+								 this.apiServer = server
+							 }}
+							 onCustomServersChange={(servers) => {
+								 setCustomApiServers(servers)
+								 this.customApiServers = servers
+							 }}
+					   />
+				   </PanelSectionRow>
+				   <PanelSectionRow>
 					   <IdOverrideComponent
 							 value={overrides}
 							 onChange={(value) => {
-								 this.logger.debug("overrides", value);
 								 setOverrides(value)
 								 this.overrides = value
 							 }}

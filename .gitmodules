@@ -1,0 +1,9 @@
+[submodule "backend/src/rcheevos"]
+	path = backend/src/rcheevos
+	url = https://github.com/RetroAchievements/rcheevos.git
+[submodule "backend/src/libchdr"]
+	path = backend/src/libchdr
+	url = https://github.com/rtissera/libchdr.git
+[submodule "backend/src/libarchive"]
+	path = backend/src/libarchive
+	url = https://github.com/libarchive/libarchive

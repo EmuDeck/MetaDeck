@@ -45,7 +45,7 @@ yalc.lock
 
 # Ignore output folder
 
-*.py
+/*.py
 
 backend/out
 backend/lib
@@ -58,3 +58,8 @@ lib/frontend/*
 
 deck.json
 /gog.db
+
+py_modules
+MetaDeck.egg-info
+
+

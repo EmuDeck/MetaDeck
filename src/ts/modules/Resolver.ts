@@ -34,16 +34,29 @@ export abstract class Resolver<
 	{
 		return this._state;
 	}
+
 	private readonly _module: Mod;
 	get module(): Mod
 	{
 		return this._module;
 	}
+
 	private readonly _provider: Prov;
 	get provider(): Prov
 	{
 		return this._provider;
 	}
+
+	get config(): ResolverConfig & ProvResConfigs[keyof ProvResConfigs][keyof ProvResConfigs[keyof ProvResConfigs]]
+	{
+		return (this.provider.config.resolvers[this.identifier as keyof ProvResConfigs[keyof ProvResConfigs]]) as ResolverConfig & ProvResConfigs[keyof ProvResConfigs][keyof ProvResConfigs[keyof ProvResConfigs]]
+	}
+
+	get cache(): ResolverCache & ProvResCaches[keyof ProvResCaches][keyof ProvResCaches[keyof ProvResCaches]]
+	{
+		return (this.provider.cache.resolvers[this.identifier as keyof ProvResCaches[keyof ProvResCaches]]) as ResolverCache & ProvResCaches[keyof ProvResCaches][keyof ProvResCaches[keyof ProvResCaches]]
+	}
+
 	abstract identifier: string;
 	abstract title: string;
 
@@ -64,12 +77,12 @@ export abstract class Resolver<
 
 	get enabled(): boolean
 	{
-		return (this.module.config.providers[this.provider.identifier as keyof ProvConfigs].resolvers[this.identifier as keyof ProvResConfigs[keyof ProvResConfigs]] as ResolverConfig).enabled
+		return this.config.enabled
 	}
 
 	set enabled(enabled: boolean)
 	{
-		(this.module.config.providers[this.provider.identifier as keyof ProvConfigs].resolvers[this.identifier as keyof ProvResConfigs[keyof ProvResConfigs]] as ResolverConfig).enabled = enabled
+		this.config.enabled = enabled
 		void this.module.saveData();
 	}
 

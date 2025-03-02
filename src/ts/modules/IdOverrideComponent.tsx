@@ -155,7 +155,6 @@ export const IdOverrideComponent = <T extends number | string>({
 				Object.values(entries).map((entry) =>
 
 					   <Field
-
 							 label={entry.label}
 							 childrenLayout={"inline"}
 							 bottomSeparator={"standard"}

@@ -80,6 +80,8 @@ export class Settings
 						enabled: true,
 						ordinal: 2,
 						fuzziness: 5,
+						api_server: undefined,
+						custom_api_servers: [],
 						overrides: {},
 						resolvers: {}
 					}

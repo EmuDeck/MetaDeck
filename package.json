@@ -4,7 +4,7 @@
 	"description": "Plugin for viewing metadata for non steam games from IGDB. Part of the EmuDeck Project",
 	"type": "module",
 	"scripts": {
-		"build": "./update.sh && rollup -c",
+		"build": "rollup -c",
 		"watch": "rollup -c -w",
 		"package": "decky plugin build",
 		"start": "decky plugin deploy"
