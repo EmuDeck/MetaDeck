@@ -16,6 +16,6 @@ cd /plugin
 python -m venv ./ci_venv
 . ./ci_venv/bin/activate
 
-./update.sh || 1
+./update.sh
 
 rm -rf ./ci_venv
