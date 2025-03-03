@@ -1,6 +1,18 @@
 #!/bin/sh
 
-sed "s/^version = .*/version = $(jq .version package.json)/" -i pyproject.toml
+version=$(jq .version package.json)
+
+# Remove the surrounding quotes
+version="${version#\"}"
+version="${version%\"}"
+
+# Remove the part after the first hyphen
+version="${version%-*}"
+
+# Add the quotes back
+version="\"$version\""
+
+sed "s/^version = .*/version = $version/" -i pyproject.toml
 
 if [ -d "venv" ]; then
 	. venv/bin/activate
