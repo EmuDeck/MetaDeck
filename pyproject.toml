@@ -2,12 +2,9 @@
 requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
-
-
-
 [project]
 name = "MetaDeck"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
 ]
 
