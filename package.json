@@ -1,6 +1,6 @@
 {
 	"name": "metadeck",
-	"version": "3.0.2-RALogic",
+	"version": "3.0.2",
 	"description": "Plugin for viewing metadata for non steam games from IGDB. Part of the EmuDeck Project",
 	"type": "module",
 	"scripts": {
