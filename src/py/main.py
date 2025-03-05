@@ -60,6 +60,10 @@ class Plugin:
 		if Heroic.heroic_gog is not None and id in Heroic.heroic_gog:
 			return Heroic.heroic_gog[id]
 
+	async def hash(self, path: str) -> str:
+		return os.popen(
+			f"'{os.path.join(decky_plugin.DECKY_PLUGIN_DIR, 'bin', 'hash')}' \"{path}\"").read().strip()
+
 	async def _main(self) -> None:
 		"""
 		Load function

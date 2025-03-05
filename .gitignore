@@ -62,4 +62,5 @@ deck.json
 py_modules
 MetaDeck.egg-info
 
-
+ci_venv/
+cli/
