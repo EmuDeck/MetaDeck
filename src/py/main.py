@@ -45,24 +45,24 @@ class Plugin:
 		return await directory_size(path)
 
 	async def nsl_egs_data(self, id: str) -> dict | None:
-		if NSL.nsl_egs is not None and id in NSL.nsl_egs:
-			return NSL.nsl_egs[id]
+		if NSL.egs is not None and id in NSL.egs:
+			return NSL.egs[id]
 
 	async def nsl_gog_data(self, id: int) -> dict | None:
-		if NSL.nsl_gog is not None and id in NSL.nsl_gog:
-			return NSL.nsl_gog[id]
+		if NSL.gog is not None and id in NSL.gog:
+			return NSL.gog[id]
 
 	async def heroic_egs_data(self, id: str) -> dict | None:
-		if Heroic.heroic_egs is not None and id in Heroic.heroic_egs:
-			return Heroic.heroic_egs[id]
+		if Heroic.egs is not None and id in Heroic.egs:
+			return Heroic.egs[id]
 
 	async def heroic_gog_data(self, id: int) -> dict | None:
-		if Heroic.heroic_gog is not None and id in Heroic.heroic_gog:
-			return Heroic.heroic_gog[id]
+		if Heroic.gog is not None and id in Heroic.gog:
+			return Heroic.gog[id]
 
 	async def hash(self, path: str) -> str:
 		return os.popen(
-			f"'{os.path.join(decky_plugin.DECKY_PLUGIN_DIR, 'bin', 'hash')}' \"{path}\"").read().strip()
+			f"'{os.path.join(decky.DECKY_PLUGIN_DIR, 'bin', 'hash')}' \"{path}\"").read().strip()
 
 	async def _main(self) -> None:
 		"""

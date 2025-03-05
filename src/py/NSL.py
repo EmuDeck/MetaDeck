@@ -15,8 +15,8 @@ def remove_c_drive_from_path(path):
 		return path[3:]
 
 class NSL:
-	nsl_egs: Dict[str, Dict[str, any]] | None = None
-	nsl_gog: Dict[int, Dict[str, any]] | None = None
+	egs: Dict[str, Dict[str, any]] | None = None
+	gog: Dict[int, Dict[str, any]] | None = None
 
 	@classmethod
 	async def init_nsl(cls) -> None:
@@ -32,25 +32,25 @@ class NSL:
 			egs_data = nsl_prefix / "ProgramData" / "Epic" / "EpicGamesLauncher" / "Data" / "Manifests"
 			gog_db = nsl_prefix / "ProgramData" / "GOG.com" / "Galaxy" / "storage" / "galaxy-2.0.db"
 			if egs_data.exists():
-				cls.nsl_egs = {}
+				cls.egs = {}
 				for item in os.listdir(egs_data):
 					if item.endswith(".item"):
 						with open(egs_data / item) as f:
 							item_data: dict = json.load(f)
 						app_name: str = item_data["AppName"]
-						cls.nsl_egs[app_name] = {}
+						cls.egs[app_name] = {}
 						namespace: str = item_data["CatalogNamespace"]
 						install_path: str = (nsl_prefix / Path(
 							remove_c_drive_from_path(item_data["InstallLocation"]).replace("\\", "/"))).as_posix()
 						install_size: int = item_data["InstallSize"]
 						install_date: int = await file_date(install_path)
-						cls.nsl_egs[app_name]["namespace"] = namespace
-						cls.nsl_egs[app_name]["install_size"] = install_size
-						cls.nsl_egs[app_name]["install_date"] = install_date
-						cls.nsl_egs[app_name]["install_path"] = install_path
+						cls.egs[app_name]["namespace"] = namespace
+						cls.egs[app_name]["install_size"] = install_size
+						cls.egs[app_name]["install_date"] = install_date
+						cls.egs[app_name]["install_path"] = install_path
 
 			if gog_db.exists():
-				cls.nsl_gog = {}
+				cls.gog = {}
 				connection = sqlite3.connect(gog_db)
 				cursor = connection.cursor()
 				cursor.execute("SELECT productId, installationPath FROM InstalledBaseProducts")
@@ -60,10 +60,10 @@ class NSL:
 				id: int
 				path: str
 				for id, path in entries:
-					cls.nsl_gog[id] = {}
+					cls.gog[id] = {}
 					install_path = (nsl_prefix / Path(remove_c_drive_from_path(path).replace("\\", "/"))).as_posix()
 					install_size = await directory_size(install_path)
 					install_date = await file_date(install_path)
-					cls.nsl_gog[id]["install_size"] = install_size
-					cls.nsl_gog[id]["install_data"] = install_date
-					cls.nsl_gog[id]["install_path"] = install_path
+					cls.gog[id]["install_size"] = install_size
+					cls.gog[id]["install_data"] = install_date
+					cls.gog[id]["install_path"] = install_path
