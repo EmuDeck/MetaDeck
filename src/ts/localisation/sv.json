@@ -28,7 +28,7 @@
 	"storeCategoriesGOG": "GOG Galaxy",
 	"storeCategoriesNSL": "Inte Steam-startare",
 	"storeCategoriesJunkStore": "Skräpbutik",
-	"storeCategoriesHeroic": "Hjälte",
+	"storeCategoriesHeroic": "Heroic",
 	"storeCategoriesLutris": "Lutris",
 	"storeCategoriesPrime": "Amazon Prime Gaming",
 	"storeCategoriesFlatpak": "Flatpak",
@@ -60,7 +60,7 @@
 	"metadataSettingsMarkdownDesc": "Infogar en markdown-renderare i varje spels beskrivning",
 	"metadataSettingsTitleHeader": "Visa titelrubrik",
 	"metadataSettingsTitleHeaderDesc": "Infogar en rubrik i varje spels beskrivning",
-	"compatdataSettingsVerified": "Tillämpa kortleksverifierad status",
+	"compatdataSettingsVerified": "Tillämpa Deck-verifierad status",
 	"compatdataSettingsVerifiedDesc": "Dra in kompatibilitetsdata från leverantörer och injicerar den i Steams Deck-verifierade indikatorer",
 	"compatdataSettingsNotes": "Tillämpa Deck-verifierade anteckningar",
 	"compatdataSettingsNotesDesc": "Dra ytterligare information om kompatibilitet från leverantörer och injicerar den i ångans Deck-verifierade indikatorer"
