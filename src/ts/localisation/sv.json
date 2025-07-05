@@ -59,7 +59,7 @@
 	"metadataSettingsMarkdown": "Använd Markdown-renderare",
 	"metadataSettingsMarkdownDesc": "Infogar en markdown-renderare i varje spels beskrivning",
 	"metadataSettingsTitleHeader": "Visa titelrubrik",
-	"metadataSettingsTitleHeaderDesc": "Infogar en rubrik i varje spels beskrivning",
+	"metadataSettingsTitleHeaderDesc": "Infogar en titelrubrik i varje spels beskrivning",
 	"compatdataSettingsVerified": "Tillämpa Deck-verifierad status",
 	"compatdataSettingsVerifiedDesc": "Dra in kompatibilitetsdata från leverantörer och injicerar den i Steams Deck-verifierade indikatorer",
 	"compatdataSettingsNotes": "Tillämpa Deck-verifierade anteckningar",
