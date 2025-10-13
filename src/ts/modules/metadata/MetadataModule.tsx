@@ -823,7 +823,7 @@ export class MetadataModule extends Module<
 	async applyOverview(overview: SteamAppOverview): Promise<void>
 	{
 		if (this.rating)
-			overview.metacritic_score = this.data[overview.appid]?.rating;
+			overview.metacritic_score = Math.round(this.data[overview.appid]?.rating ?? 0);
 		if (this.categories)
 			this.data[overview.appid]?.store_categories?.forEach(category => overview.m_setStoreCategories.add(category));
 		if (this.installSize)
